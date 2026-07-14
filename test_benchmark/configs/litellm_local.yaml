@@ -26,7 +26,7 @@ model_list:
       # "openai/" prefix = treat as an OpenAI-compatible endpoint.
       # The id after it MUST match LM Studio's model id --
       # verify with:  curl http://localhost:1234/v1/models
-      model: openai/qwen3-8b
+      model: openai/qwen3-4b
       api_base: http://localhost:1234/v1
       api_key: lm-studio          # local server ignores the key (any value works)
       temperature: 0              # determinism (spec: temp=0). Agents send no temp, so this applies.

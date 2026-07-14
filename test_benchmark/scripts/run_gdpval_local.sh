@@ -18,5 +18,5 @@ LOCAL_LLM_API_KEY=lm-studio \
 HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 \
 PYTHONUTF8=1 \
   "$HERE/.venv/Scripts/python.exe" -m harness.run \
-    --agent ace_gdpval --benchmark gdpval --model qwen3-8b --split train \
+    --agent ace_gdpval --benchmark gdpval --model qwen3-4b --split train \
     "${LIMIT_ARG[@]}" --concurrency 1 --run-id "$RUN_ID" --resume

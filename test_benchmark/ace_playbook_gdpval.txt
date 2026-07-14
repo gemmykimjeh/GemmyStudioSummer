@@ -2,17 +2,17 @@
 
 ## FORMULAS & CALCULATIONS
 
-[calc-00001] helpful=0 harmful=0 :: Use the correct formula for sample size calculation with z = 1.645 (for 90% confidence), p = 0.5 (conservative estimate), e = 0.10 (tolerable error rate), and apply finite population correction when necessary.
-[calc-00002] helpful=0 harmful=0 :: Ensure all formulas are clearly labeled for audit transparency, including detailed arithmetic steps for reproducibility.
+[calc-00001] helpful=0 harmful=0 :: Sample Size Calculation Formula: Sample size (R) = [z^2 * p * (1 - p)] / e^2 * [N / (N - 1)] where z = 1.645, p = 0.5, e = 0.10, and N is the population size.
 ## CODE SNIPPETS & TEMPLATES
 
 ## COMMON MISTAKES TO AVOID
 
-[err-00003] helpful=0 harmful=0 :: Avoid using incorrect z-score values and ensure finite population correction is applied when required to improve accuracy in sample size calculations.
+[err-00002] helpful=0 harmful=0 :: Failure to include all required worksheets (e.g., 'Sample Size Calculation' and 'Sample') and not showing arithmetic steps for sample size calculation.
+[err-00003] helpful=0 harmful=0 :: Not ensuring that all data is copied accurately from the 'Population' sheet, including column headers and values.
+[err-00004] helpful=0 harmful=0 :: Failing to meet sample selection criteria, suchity that each criteria listed is satisfied by at least one selected sample among all samples selected.
 ## PROBLEM-SOLVING HEURISTICS
 
+[ph-00005] helpful=0 harmful=0 :: Ensure that the model thoroughly understands and follows all formatting and naming conventions required by the audit task, including worksheet names, data accuracy, and sample selection criteria.
 ## CONTEXT CLUES & INDICATORS
 
 ## OTHERS
-[misc-00004] helpful=0 harmful=0 :: Properly label column headers for variance analysis, handle division by zero errors with 'NA' or blank cells, and ensure all required entities and divisions are covered in the sample selection.
-[misc-00005] helpful=0 harmful=0 :: Capture exceptionally large percentage changes in variance analysis to emphasize metrics with significant deviations between Q2 and Q3 data.
