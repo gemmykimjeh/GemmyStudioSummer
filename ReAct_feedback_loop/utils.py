@@ -44,9 +44,17 @@ def initialize_clients(api_provider):
         api_key = os.getenv('ANTHROPIC_API_KEY', '')
         if not api_key:
             raise ValueError("Anthropic api key not found in environment variables")
+    elif api_provider in ("local", "lmstudio"):
+        # Local OpenAI-compatible server (LM Studio / llama.cpp / vLLM). base_url
+        # and key are env-overridable so the same code toggles local <-> hosted
+        # with no edits. The local server ignores the key but the SDK requires one.
+        # temperature=0.0 is applied automatically in llm.py for non-anthropic
+        # providers, so local runs stay deterministic.
+        base_url = os.getenv("LOCAL_LLM_BASE_URL", "http://localhost:1234/v1")
+        api_key = os.getenv("LOCAL_LLM_API_KEY", "lm-studio")
     else:
         raise ValueError(
-            f"Invalid api_provider name: {api_provider}. Must be 'sambanova', 'together', 'openai', 'commonstack', or 'anthropic'"
+            f"Invalid api_provider name: {api_provider}. Must be 'sambanova', 'together', 'openai', 'commonstack', 'anthropic', or 'local'/'lmstudio'"
         )
         
     generator_client = openai.OpenAI(api_key=api_key, base_url=base_url)

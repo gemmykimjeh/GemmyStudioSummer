@@ -55,7 +55,7 @@ class ACEGDPvalAgent(Agent):
         self,
         model: str = "claude-sonnet-5",
         max_tokens: int = 8000,
-        api_provider: str = "anthropic",
+        api_provider: str | None = None,
         ace_path: str = r"C:\GemmyStudioSummer\ReAct",
         grader_model: str = "claude-sonnet-4-6",
         playbook_out: str = "ace_playbook_gdpval.txt",
@@ -68,13 +68,20 @@ class ACEGDPvalAgent(Agent):
     ) -> None:
         self.model = model
         self.max_tokens = max_tokens
-        self.api_provider = api_provider
+        self.api_provider = api_provider or os.environ.get("ACE_API_PROVIDER", "anthropic")
         self.ace_path = ace_path
         self.grader_model = grader_model
         self.playbook_out = playbook_out
         self.curator_frequency = curator_frequency
         self.token_budget = token_budget
         self.success_threshold = success_threshold
+        if self.api_provider in ("local", "lmstudio"):
+            # Local iGPU (Arc/Vulkan) crashes on prompts beyond ~4-5k tokens, and
+            # the full playbook is injected into every Generator/Reflector call.
+            # Cap deliverable length and playbook budget so prompts stay small and
+            # the long unattended run does not device-lost as the playbook grows.
+            self.max_tokens = min(self.max_tokens, 3000)
+            self.token_budget = min(self.token_budget, 2500)
         self.use_bulletpoint_analyzer = use_bulletpoint_analyzer
         self.dedup_threshold = dedup_threshold
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
@@ -209,13 +216,20 @@ class ACEGDPvalAgent(Agent):
 
         # --- GDPval's OWN rubric grader = the benchmark correctness signal ---
         try:
+            # On the local iGPU path, keep the grader prompt small (the full
+            # deliverable + rubric otherwise crashes Arc/Vulkan on the long
+            # decode) and skip Qwen3 reasoning.
+            _local = os.environ.get("ACE_API_PROVIDER", "").lower() in ("local", "lmstudio")
+            _submission = deliverable[:6000] if _local else deliverable
             gprompt = GRADER_TEMPLATE.format(
-                prompt=task.prompt, submission=deliverable,
+                prompt=task.prompt, submission=_submission,
                 rubric=json.dumps([{"rubric_item_id": c.get("rubric_item_id"),
                                     "score": c.get("score"),
                                     "criterion": c.get("criterion"),
                                     "required": c.get("required")} for c in rubric],
                                    ensure_ascii=False))
+            if _local:
+                gprompt += "\n/no_think"
             g = self._client.messages.create(
                 model=self.grader_model, max_tokens=4096,
                 messages=[{"role": "user", "content": gprompt}])

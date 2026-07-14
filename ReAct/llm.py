@@ -64,9 +64,16 @@ def timed_llm_call(client, api_provider, model, prompt, role, call_id, max_token
             else:
                 max_tokens_key = "max_tokens"
 
+            # Local (LM Studio / Qwen3): append "/no_think" to skip the reasoning
+            # trace. It otherwise burns most of max_tokens on <think> content
+            # (slow, and bloats deliverables -> huge grader prompts that crash the
+            # Intel Arc iGPU). No effect on hosted providers.
+            _content = prompt
+            if api_provider in ("local", "lmstudio"):
+                _content = prompt + "\n/no_think"
             api_params = {
                 "model": model,
-                "messages": [{"role": "user", "content": prompt}],
+                "messages": [{"role": "user", "content": _content}],
                 max_tokens_key: max_tokens
             }
             # Claude (via Anthropic's OpenAI-compatible endpoint) deprecates
@@ -80,7 +87,11 @@ def timed_llm_call(client, api_provider, model, prompt, role, call_id, max_token
             # json_schema), so for that provider we skip the param and rely on the
             # prompt's explicit "answer in this exact JSON format" instruction to
             # elicit JSON. Every other provider keeps the original behavior.
-            if use_json_mode and api_provider != "anthropic":
+            # LM Studio's OpenAI endpoint only accepts response_format.type of
+            # 'json_schema' or 'text' (not 'json_object'), so for local providers
+            # we skip the param and rely on the prompt's explicit JSON instruction
+            # (same as the anthropic path).
+            if use_json_mode and api_provider not in ("anthropic", "local", "lmstudio"):
                 api_params["response_format"] = {"type": "json_object"}
             call_start = time.time()
             response = active_client.chat.completions.create(**api_params)
@@ -100,7 +111,7 @@ def timed_llm_call(client, api_provider, model, prompt, role, call_id, max_token
             # Anthropic's OpenAI-compatible endpoint often wraps JSON output in
             # ```json ... ``` code fences, which breaks downstream json.loads
             # (e.g. Generator bullet_ids). Strip the fence for that provider only.
-            if api_provider == "anthropic":
+            if api_provider in ("anthropic", "local", "lmstudio"):
                 _s = response_content.strip()
                 if _s.startswith("```"):
                     _nl = _s.find("\n")

@@ -79,7 +79,7 @@ class ACETauAgent(Agent):
         model: str = "claude-haiku-4-5",
         max_steps: int = 30,
         max_tokens: int = 4096,
-        api_provider: str = "anthropic",
+        api_provider: str | None = None,
         ace_path: str = r"C:\GemmyStudioSummer\ReAct",
         playbook_out: str = "ace_playbook_tau.txt",
         curator_frequency: int = 1,
@@ -91,7 +91,7 @@ class ACETauAgent(Agent):
         self.model = model
         self.max_steps = max_steps
         self.max_tokens = max_tokens
-        self.api_provider = api_provider
+        self.api_provider = api_provider or os.environ.get("ACE_API_PROVIDER", "anthropic")
         self.ace_path = ace_path
         self.playbook_out = playbook_out
         self.curator_frequency = curator_frequency
