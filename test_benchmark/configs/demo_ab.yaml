@@ -1,0 +1,24 @@
+# Fully offline A/B demo — verifies the experiment runner end-to-end with NO
+# API key, network, or cost. It's a real "loop_off vs loop_on" ablation using
+# the scripted agent: loop_off takes zero actions (max_steps=0 -> fails),
+# loop_on replays the task's oracle actions (-> solves). The delta is therefore
+# large and significant, exercising delta + bootstrap-CI + graph + CSV.
+name: demo_ab
+base_model: null              # scripted ignores model
+benchmarks: [tau_bench, automation_bench]
+benchmark_args:
+  tau_bench: { real: false }        # offline mock
+  automation_bench: { real: false } # offline mock
+repeats: 3
+limit: 3
+seed: 42
+concurrency: 4
+baseline: loop_off
+conditions:
+  - name: loop_off
+    agent: scripted
+    agent_args: { max_steps: 0 }    # no feedback loop / no actions
+  - name: loop_on
+    agent: scripted
+    agent_args: { max_steps: 50 }   # runs the full action sequence
+output_dir: runs/exp_demo_ab

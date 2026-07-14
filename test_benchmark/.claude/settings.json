@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "PowerShell",
+      "Read",
+      "Edit",
+      "Write",
+      "Glob",
+      "Grep",
+      "WebFetch",
+      "WebSearch",
+      "Skill",
+      "Agent",
+      "Task",
+      "TodoWrite",
+      "NotebookEdit",
+      "Bash(command -v claude)",
+      "Bash(claude --version)",
+      "Bash(mkdir -p \"/c/hermes/.home/.claude\")",
+      "Bash(echo \"created C:\\\\\\\\hermes\\\\\\\\.home\\\\\\\\.claude\")"
+    ],
+    "defaultMode": "bypassPermissions"
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "skipAutoPermissionPrompt": true
+}

@@ -1,0 +1,35 @@
+# Memory / skills workspace A/B for the Hermes agent (DAIOps feedback-loop
+# effect). Same model, same tasks, same seed — the ONLY thing that changes
+# between conditions is the Hermes memory/skills workspace injected via the
+# `hermes_home` path (req 4: path-based workspace A/B):
+#   - memory_off: an empty workspace  -> no accumulated skills/notes
+#   - memory_on : the populated Hermes workspace (C:/hermes/.hermes)
+# Auth is unaffected: Hermes signs in via its own account under USERPROFILE
+# (C:/hermes/.home/.claude), which the adapter keeps fixed across conditions.
+#
+# Benchmarks are MOCK here so the command runs without a user-simulator key and
+# stays cheap for a smoke run. The memory effect is strongest on the REAL,
+# harder tasks — flip `real: true` (needs keys) to measure it for real; on the
+# mock tasks the delta is expected to be small/noise.
+name: loop_ab
+base_model: claude-haiku-4-5        # cheap; override per condition if desired
+benchmarks: [tau_bench, automation_bench]
+benchmark_args:
+  tau_bench: { real: false }
+  automation_bench: { real: false }
+repeats: 3
+limit: 3
+seed: 42
+concurrency: 2
+timeout: 600
+baseline: memory_off
+conditions:
+  - name: memory_off
+    agent: hermes
+    agent_args:
+      hermes_home: "C:/GemmyStudioSummer/test_benchmark/configs/workspaces/empty"
+  - name: memory_on
+    agent: hermes
+    agent_args:
+      hermes_home: "C:/hermes/.hermes"
+output_dir: runs/exp_loop_ab

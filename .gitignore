@@ -1,0 +1,38 @@
+# ============================================================================
+# GemmyStudioSummer — 통합 .gitignore
+# (ReAct / ReAct_feedback_loop / test_benchmark 의 개별 .gitignore를 병합)
+# 패턴에 선행 슬래시가 없으면 모든 하위 깊이에서 매칭됨 (모노레포용).
+# ============================================================================
+
+# ----- Python -----
+__pycache__/
+*/__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ----- 가상환경 (이동 정비 완료; 커밋 대상 아님) -----
+.venv/
+.venv-osworld/
+venv/
+
+# ----- env / 시크릿 (실제 키는 루트 .env 하나로 통일, 하위는 하드링크) -----
+.env
+.env.*
+!.env.example
+
+# ----- Claude Code 개인 설정 (권한/bypass 모드 — 커밋 금지) -----
+.claude/settings.local.json
+.claude/settings.json
+
+# ----- 벤치마크 실행 로그 / 출력물 (test_benchmark) -----
+runs/
+results/
+ace_gdpval_run/
+ace_react_run/
+ace_tau_run/
+
+# ----- 외부 벤치마크 클론 (test_benchmark/external, ~509M, 각자 .git 보유) -----
+external/

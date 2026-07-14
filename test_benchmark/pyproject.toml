@@ -1,0 +1,83 @@
+[project]
+name = "agent-bench-harness"
+version = "0.1.0"
+description = "Pluggable evaluation harness: run any agent against 7 benchmark suites behind two clean abstractions."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+# Real ClaudeSDKAgent (claude_sdk) needs the Anthropic SDK (raw Messages API +
+# our own tool loop). Everything else works without it.
+claude = ["anthropic>=0.40"]
+# The claude_agent_sdk agent drives Anthropic's real Claude Agent SDK framework
+# (its own agentic loop; the bundled Claude Code engine ships in the wheel).
+claude_agent_sdk = ["claude-agent-sdk>=0.2"]
+
+# Heavy, benchmark-specific dependencies are isolated here so `pip install .`
+# stays light. Install only the extras for the benchmarks you actually run.
+# These are wired to the Phase-2 stub adapters; see each adapter's docstring.
+# REAL OSWorld: attaches to an already-running OSWorld desktop VM via
+# --env-endpoint (no local provisioning) and scores with the official
+# DesktopEnv.evaluate(). Task loading needs nothing; attaching/scoring needs
+# OSWorld's own heavy deps, installed from the clone:
+#   git clone https://github.com/xlang-ai/OSWorld external/OSWorld
+#   cd external/OSWorld && pip install -e .   # torch, opencv, librosa, ...
+osworld = []                              # xlang-ai/OSWorld — needs a running VM
+# REAL SWE-Bench Verified: agent edits a git checkout in a container; scoring
+# runs the OFFICIAL swebench harness inside an on-demand Linux runner image
+# (swebench is Unix-only) that drives the host Docker daemon. So the only host
+# dep is `datasets` (to load SWE-bench_Verified) + Docker; swebench itself is
+# installed *inside* the runner image, not into this venv.
+swe_bench = ["datasets>=2.0"]
+# REAL Terminal-Bench 2.0: pulls each task's prebuilt image + runs the official
+# verifier (tests/test.sh -> reward.txt) via the Docker CLI. No Python deps
+# (task.toml is read with stdlib tomllib). Needs Docker + the cloned 2.0 tasks:
+#   git clone https://github.com/laude-institute/terminal-bench-2 external/terminal-bench-2
+# (or set TERMINAL_BENCH_TASKS).
+terminal_bench = []
+# REAL tau-bench drives the upstream simulator + an LLM user-sim (litellm).
+# Also clone the repo: git clone https://github.com/sierra-research/tau-bench.git
+#   external/tau-bench   (or set TAU_BENCH_PATH). The MOCK fallback needs nothing.
+tau_bench = ["litellm>=1.41.0"]
+browsecomp = ["anthropic>=0.40"]          # browsing via Anthropic web tools + judge
+# REAL GDPval (openai/gdpval, NOT GDPval-AA): tool-free deliverable graded by an
+# LLM judge against the official rubric_json. Needs datasets (load the 220 gold
+# tasks) + anthropic (the judge / ANTHROPIC_API_KEY).
+gdpval = ["anthropic>=0.40", "datasets>=2.0"]
+# REAL AutomationBench drives the upstream public task set (deterministic,
+# no user-sim LLM). Also clone the repo:
+#   git clone https://github.com/zapier/AutomationBench.git external/AutomationBench
+# (or set AUTOMATION_BENCH_PATH). The MOCK fallback needs nothing.
+automation_bench = ["datasets>=2.0"]
+# The `hermes` agent bridges the benchmark Env to the (separate) Hermes project
+# over MCP. Needs the MCP server SDK here; Hermes itself lives at C:/hermes with
+# its own venv (set HERMES_PATH). No Hermes deps are installed into our venv.
+hermes = ["mcp>=1.2"]
+# A/B experiment runner (harness.experiment): YAML configs + bar-chart output.
+experiment = ["pyyaml>=6.0", "matplotlib>=3.7"]
+all-benchmarks = [
+    "desktop-env", "swebench", "docker", "terminal-bench", "openai",
+]
+
+dev = [
+    "pytest>=8",
+    "pytest-cov",
+]
+
+[project.scripts]
+harness = "harness.run:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["harness"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

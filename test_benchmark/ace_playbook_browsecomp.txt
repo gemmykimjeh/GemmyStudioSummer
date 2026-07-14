@@ -1,0 +1,19 @@
+## STRATEGIES & INSIGHTS
+
+## FORMULAS & CALCULATIONS
+
+[calc-00002] helpful=0 harmful=0 :: Significant strike percentage = (significant strikes landed / significant strikes attempted) * 100. Use this to verify or reverse-engineer fighter stats when given a percentage (e.g., 14/83 = 16.87%). If a percentage is provided, confirm it matches landed/attempted numbers exactly to validate you have the correct fight.
+## CODE SNIPPETS & TEMPLATES
+
+## COMMON MISTAKES TO AVOID
+
+## PROBLEM-SOLVING HEURISTICS
+
+## CONTEXT CLUES & INDICATORS
+
+[ctx-00003] helpful=0 harmful=0 :: Nicknames given as clues (e.g., 'a synonym for swordsman') may need semantic translation - brainstorm nickname synonyms (e.g., 'Samurai', 'Blade', 'Gladiator', 'Rapier', 'Fencer') and search for fighters with those or similar nicknames rather than the literal clue word.
+[ctx-00004] helpful=0 harmful=0 :: Referee career clues (e.g., 'worked his first event for the same promotion in [year]') are strong disambiguators - identify referees whose debut year with a specific promotion (e.g., UFC) matches, then check which of their officiated fights match other criteria (weight class, stats, date before cutoff).
+## OTHERS
+[misc-00001] helpful=0 harmful=0 :: For multi-constraint identification questions (e.g., 'find the event where X happened'), list out ALL given clues separately (stats, nationality, age, nickname, referee history, date range) and treat each as an independent filter. Cross-reference databases/sources using the most unique/rare clue first (e.g., specific strike percentage or referee's first event year) to narrow down candidates before verifying the remaining clues.
+[misc-00005] helpful=0 harmful=0 :: When a question specifies 'before [year]' as a constraint, ensure the identified event's date is strictly prior to that year - this can help eliminate candidate events that otherwise match other stats but occurred in or after the excluded year.
+[misc-00006] helpful=0 harmful=0 :: For MMA-specific questions requiring fight statistics (strikes, takedowns), prioritize checking official stats databases (e.g., UFCStats.com) which provide exact landed/attempted numbers per round and per fight, enabling precise verification of stated percentages and zero-takedown claims.
