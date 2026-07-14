@@ -1,18 +1,23 @@
 ## STRATEGIES & INSIGHTS
 
+[sai-00001] helpful=3 harmful=0 :: When a prompt requests a specific file format (e.g., .xlsx, .csv) as a deliverable, prioritize the use of code execution (Python/Pandas) to generate the file. Do not provide a textual summary of the process as a substitute for the actual file.
+[sai-00005] helpful=2 harmful=0 :: For multi-step research and file-generation tasks, explicitly break the process into distinct phases: 1) Search and data extraction, 2) Data validation, and 3) Programmatic file generation. Do not attempt to summarize findings until the data has been successfully extracted and structured for the final artifact.
+[sai-00007] helpful=0 harmful=0 :: When a task requires a technical document with visual diagrams (e.g., signal flow charts), use Python libraries like 'matplotlib' or 'PIL' to generate the image files programmatically, then embed them into the final PDF using 'reportlab' or 'fpdf'. Do not rely on text-based ASCII art for diagrams.
+[sai-00009] helpful=0 harmful=0 :: When a prompt provides a detailed rubric or list of required content sections (e.g., cost drivers, decision gates, stakeholder sign-offs), treat the rubric as a mandatory structural checklist. Map each requirement to a specific section or paragraph in the generated document to ensure comprehensive coverage.
 ## FORMULAS & CALCULATIONS
 
-[calc-00001] helpful=0 harmful=0 :: Sample Size Calculation Formula: Sample size (R) = [z^2 * p * (1 - p)] / e^2 * [N / (N - 1)] where z = 1.645, p = 0.5, e = 0.10, and N is the population size.
 ## CODE SNIPPETS & TEMPLATES
 
 ## COMMON MISTAKES TO AVOID
 
-[err-00002] helpful=0 harmful=0 :: Failure to include all required worksheets (e.g., 'Sample Size Calculation' and 'Sample') and not showing arithmetic steps for sample size calculation.
-[err-00003] helpful=0 harmful=0 :: Not ensuring that all data is copied accurately from the 'Population' sheet, including column headers and values.
-[err-00004] helpful=0 harmful=0 :: Failing to meet sample selection criteria, suchity that each criteria listed is satisfied by at least one selected sample among all samples selected.
+[err-00003] helpful=3 harmful=0 :: Avoid providing descriptive text or summaries when the user explicitly requests a file deliverable. Always ensure the final output includes the generated file.
+[err-00006] helpful=2 harmful=0 :: Avoid 'meta-reporting' where the model describes the research process instead of performing it. If the prompt requires a specific file deliverable, the absence of a downloadable file is a failure, regardless of how detailed the textual summary is.
+[err-00010] helpful=0 harmful=0 :: Avoid 'lazy generation' where the model provides a textual summary of a document instead of the document itself. If the prompt asks for a specific file format (e.g., .docx, .pdf), the output must be the file generated via code, not a conversational description of what the file would contain.
 ## PROBLEM-SOLVING HEURISTICS
 
-[ph-00005] helpful=0 harmful=0 :: Ensure that the model thoroughly understands and follows all formatting and naming conventions required by the audit task, including worksheet names, data accuracy, and sample selection criteria.
+[ph-00002] helpful=3 harmful=0 :: If the task involves data manipulation (e.g., variance analysis, sampling) and file output, treat the request as a data engineering task. Use Python to load the data, perform calculations, and save the final result as a downloadable artifact.
+[ph-00008] helpful=0 harmful=0 :: For hardware procurement tasks, always include direct, verifiable URLs to product pages. If the prompt requires specific technical features (e.g., analog mixer with onboard FX), explicitly list the feature and provide the link to the manufacturer's spec sheet to demonstrate compliance with the requirements.
 ## CONTEXT CLUES & INDICATORS
 
+[ctx-00004] helpful=3 harmful=0 :: Look for keywords like 'create a spreadsheet', 'save as', 'tab titled', or 'include your workings in a second tab'. These are strong indicators that a code-based file generation workflow is required.
 ## OTHERS
