@@ -36,3 +36,4 @@ ace_tau_run/
 
 # ----- 외부 벤치마크 클론 (test_benchmark/external, ~509M, 각자 .git 보유) -----
 external/
+test_benchmark/.env
