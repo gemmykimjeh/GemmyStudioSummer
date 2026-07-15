@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,6 +104,25 @@ def main(argv: list[str] | None = None) -> int:
     ensure_utf8_mode("harness.run")
     args = build_parser().parse_args(argv)
     registry.load_builtins()
+
+    # Optional: import external agent modules so their @register_agent fires.
+    # Point RGR_AGENTS_DIR at feedback_loop_gdpval/agents to load rgr_gdpval
+    # without copying it into harness/agents. Comma-separate multiple dirs.
+    _extra = os.environ.get("RGR_AGENTS_DIR", "")
+    if _extra:
+        import importlib
+        for _d in _extra.split(","):
+            _d = _d.strip()
+            if not _d:
+                continue
+            _abs = os.path.abspath(_d)
+            _parent = os.path.dirname(_abs)
+            if _parent not in sys.path:
+                sys.path.insert(0, _parent)
+            _pkg = os.path.basename(_abs)
+            for _f in sorted(os.listdir(_abs)):
+                if _f.endswith(".py") and not _f.startswith("_"):
+                    importlib.import_module(f"{_pkg}.{_f[:-3]}")
 
     if args.list:
         print("agents:    ", ", ".join(registry.available_agents()))
