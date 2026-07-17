@@ -48,10 +48,18 @@ def initialize_clients(api_provider):
         # Google Gemini via its OpenAI-compatible endpoint. Free tier key from
         # AI Studio in GEMINI_API_KEY. 1M context -> runs at ACE's real operating
         # point (no local caps). Model id passed separately, e.g. gemini-3.1-flash-lite.
-        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+        #
+        # GEMINI_BASE_URL overrides the endpoint: set it to the LiteLLM rotation
+        # proxy (http://localhost:4000/v1) to route the brain through multi-key
+        # 429 failover; unset = direct to Gemini on the single GEMINI_API_KEY.
+        base_url = os.getenv("GEMINI_BASE_URL",
+                             "https://generativelanguage.googleapis.com/v1beta/openai/")
         api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')
         if not api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
+            if os.getenv("GEMINI_BASE_URL"):
+                api_key = "sk-proxy-rotation"   # proxy holds the real keys; any value works
+            else:
+                raise ValueError("GEMINI_API_KEY not found in environment variables")
     else:
         raise ValueError(
             f"Invalid api_provider name: {api_provider}. Must be 'sambanova', 'together', 'openai', 'commonstack', 'anthropic', or 'gemini'"
@@ -75,7 +83,17 @@ def get_section_slug(section_name):
         "problem_solving_heuristics": "prob",
         "context_clues_and_indicators": "ctx",
         "others": "misc",
-        "meta_strategies": "meta"
+        "meta_strategies": "meta",
+        # Dual-playbook sections (feedback_loop.md).
+        # CONCRETE playbook sections:
+        "output_format_and_structure_rules": "fmt",
+        "tool_and_api_usage": "api",
+        "verification_checklist": "chk",
+        # ABSTRACT playbook sections:
+        "general_principles": "prin",
+        "transferable_strategies": "strat",
+        "failure_patterns_and_recovery": "fail",
+        "self_verification_habits": "verif",
     }
     
     # Clean and convert to snake_case
@@ -114,11 +132,20 @@ def extract_boxed_content(text):
 
 def extract_answer(response):
     """Extract final answer from model response"""
+    response = response if isinstance(response, str) else str(response or "")
+    # RAW-deliverable mode: the response IS the deliverable (no JSON envelope).
+    # A JSON-envelope response always contains the literal "final_answer" key; a raw
+    # one does not -> return it verbatim, stripping only the trailing "CITED:" marker
+    # line (bullet citations, not part of the deliverable). Backward compatible: JSON
+    # responses fall through to the parsing below.
+    if '"final_answer"' not in response and "'final_answer'" not in response:
+        return re.sub(r'\n?[ \t]*CITED:[^\n]*\s*$', '', response.rstrip(),
+                      flags=re.IGNORECASE).strip()
     try:
         # First try JSON parsing
         parsed = json.loads(response)
         answer = str(parsed.get("final_answer", "No final answer found"))
-        return answer  
+        return answer
             
     except (json.JSONDecodeError, KeyError, AttributeError):
         # Robust recovery for long deliverables whose JSON fails to parse. The

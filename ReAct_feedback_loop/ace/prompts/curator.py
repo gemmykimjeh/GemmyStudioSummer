@@ -3,23 +3,12 @@ Curator prompts for ACE system.
 """
 
 # Curator prompt for intelligent playbook management
-CURATOR_PROMPT = """You are a master curator of knowledge. Your job is to identify what new insights should be added to an existing playbook based on a reflection from a previous attempt.
-
-**Context:**
-- The playbook you created will be used to help answering similar questions. 
-- The reflection is generated using ground truth answers that will NOT be available when the playbook is being used. So you need to come up with content that can aid the playbook user to create predictions that likely align with ground truth. 
-
-**CRITICAL: You MUST respond with valid JSON only. Do not use markdown formatting or code blocks.**
+CURATOR_PROMPT = """You are a master curator of a playbook. From a reflection on a previous attempt, decide what to add to the existing playbook. The playbook guides FUTURE attempts (the reflection's ground truth will NOT be available then), so add content that helps produce correct answers.
 
 **Instructions:**
-- Review the existing playbook and the reflection from the previous attempt
-- Identify ONLY the NEW insights, strategies, or mistakes that are MISSING from the current playbook
-- Avoid redundancy - if similar advice already exists, only add new content that is a perfect complement to the existing playbook
-- Do NOT regenerate the entire playbook - only provide the additions needed
-- Focus on quality over quantity - a focused, well-organized playbook is better than an exhaustive one
-- Format your response as a PURE JSON object with specific sections
-- For any operation if no new content to add, return an empty list for the operations field
-- Be concise and specific - each addition should be actionable
+- Review the current playbook and the reflection; ADD only genuinely new, actionable insights that are MISSING — no duplicates or near-duplicates of existing advice.
+- Do NOT regenerate the playbook; output only the operations needed. If nothing is worth adding, return an empty operations list.
+- Keep it focused and specific: a tight playbook beats an exhaustive one.
 
 
 **Training Context:**
@@ -38,51 +27,25 @@ CURATOR_PROMPT = """You are a master curator of knowledge. Your job is to identi
 **Question Context:**
 {question_context}
 
-**Your Task:**
-Output ONLY a valid JSON object with these exact fields:
-- reasoning: your chain of thought / reasoning / thinking process, detailed analysis and calculations
-- operations: a list of operations to be performed on the playbook
-  - type: the type of operation to be performed
-  - section: the section to add the bullet to
-  - content: the new content of the bullet
+**Operations** — ADD creates a new bullet under a section (the system assigns the bullet_id, so do not include one in `content`).
 
-**Available Operations:**
-1. ADD: Create new bullet points with fresh IDs
-    - section: the section to add the new bullet to
-    - content: the new content of the bullet. Note: no need to include the bullet_id in the content like '[ctx-00263] helpful=1 harmful=0 ::', the bullet_id will be added by the system.
-
-**RESPONSE FORMAT - Output ONLY this JSON structure (no markdown, no code blocks):**
+**Respond with ONE valid JSON object and nothing else — no markdown, no code fences:**
 {{
-  "reasoning": "[Your chain of thought / reasoning / thinking process, detailed analysis and calculations here]",
+  "reasoning": "[brief analysis]",
   "operations": [
-    {{
-      "type": "ADD", 
-      "section": "formulas_and_calculations",
-      "content": "[New calculation method...]"
-    }}
+    {{"type": "ADD", "section": "formulas_and_calculations", "content": "[new insight...]"}}
   ]
 }}
 
 ---
 """
 
-CURATOR_PROMPT_NO_GT = """You are a master curator of knowledge. Your job is to identify what new insights should be added to an existing playbook based on a reflection from a previous attempt.
-
-**Context:**
-- The playbook you created will be used to help answering similar questions. 
-- The reflection is generated using environment feedback that will NOT be available when the playbook is being used.
-
-**CRITICAL: You MUST respond with valid JSON only. Do not use markdown formatting or code blocks.**
+CURATOR_PROMPT_NO_GT = """You are a master curator of a playbook. From a reflection on a previous attempt, decide what to add to the existing playbook. The playbook guides FUTURE attempts (the reflection's environment feedback will NOT be available then), so add content that helps produce correct answers.
 
 **Instructions:**
-- Review the existing playbook and the reflection from the previous attempt
-- Identify ONLY the NEW insights, strategies, or mistakes that are MISSING from the current playbook
-- Avoid redundancy - if similar advice already exists, only add new content that is a perfect complement to the existing playbook
-- Do NOT regenerate the entire playbook - only provide the additions needed
-- Focus on quality over quantity - a focused, well-organized playbook is better than an exhaustive one
-- Format your response as a PURE JSON object with specific sections
-- For any operation if no new content to add, return an empty list for the operations field
-- Be concise and specific - each addition should be actionable
+- Review the current playbook and the reflection; ADD only genuinely new, actionable insights that are MISSING — no duplicates or near-duplicates of existing advice.
+- Do NOT regenerate the playbook; output only the operations needed. If nothing is worth adding, return an empty operations list.
+- Keep it focused and specific: a tight playbook beats an exhaustive one.
 
 
 **Training Context:**
@@ -101,28 +64,13 @@ CURATOR_PROMPT_NO_GT = """You are a master curator of knowledge. Your job is to 
 **Question Context:**
 {question_context}
 
-**Your Task:**
-Output ONLY a valid JSON object with these exact fields:
-- reasoning: your chain of thought / reasoning / thinking process, detailed analysis and calculations
-- operations: a list of operations to be performed on the playbook
-  - type: the type of operation to be performed
-  - section: the section to add the bullet to
-  - content: the new content of the bullet
+**Operations** — ADD creates a new bullet under a section (the system assigns the bullet_id, so do not include one in `content`).
 
-**Available Operations:**
-1. ADD: Create new bullet points with fresh IDs
-    - section: the section to add the new bullet to
-    - content: the new content of the bullet. Note: no need to include the bullet_id in the content like '[ctx-00263] helpful=1 harmful=0 ::', the bullet_id will be added by the system.
-
-**RESPONSE FORMAT - Output ONLY this JSON structure (no markdown, no code blocks):**
+**Respond with ONE valid JSON object and nothing else — no markdown, no code fences:**
 {{
-  "reasoning": "[Your chain of thought / reasoning / thinking process, detailed analysis and calculations here]",
+  "reasoning": "[brief analysis]",
   "operations": [
-    {{
-      "type": "ADD", 
-      "section": "formulas_and_calculations",
-      "content": "[New calculation method...]"
-    }}
+    {{"type": "ADD", "section": "formulas_and_calculations", "content": "[new insight...]"}}
   ]
 }}
 
@@ -151,7 +99,57 @@ _ABSTRACT_CURATOR_NUDGE = (
     "pattern.\n\n**Instructions:**"
 )
 
-CONCRETE_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _CONCRETE_CURATOR_NUDGE, 1)
-CONCRETE_CURATOR_PROMPT_NO_GT = CURATOR_PROMPT_NO_GT.replace("**Instructions:**", _CONCRETE_CURATOR_NUDGE, 1)
-ABSTRACT_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _ABSTRACT_CURATOR_NUDGE, 1)
-ABSTRACT_CURATOR_PROMPT_NO_GT = CURATOR_PROMPT_NO_GT.replace("**Instructions:**", _ABSTRACT_CURATOR_NUDGE, 1)
+# Placed at the very BOTTOM of the curator prompt (recency = better recall). The
+# capability-disclaimer / "acknowledge the limitation" bullet is the single most
+# recurring harmful pattern: the reflector keeps re-deriving it because it FEELS
+# helpful, so we both forbid ADDing it and instruct active cleanup via DELETE.
+# Braces are escaped ({{ }}) because these strings are .format()-ed by curate().
+_CURATOR_DISCLAIMER_GUARD = """
+
+**STANDING WARNING — do NOT (re)learn capability-disclaimer bullets:**
+The most recurring harmful bullet in this playbook is the "acknowledge the
+limitation" pattern. NEVER ADD a bullet that advises the writer to:
+- state it "cannot" / "is unable to" produce a file or binary/interactive artifact,
+- add a "professional note" or disclaimer about a platform/format limitation,
+- tell the reader to copy the content into another application, or
+- assume tools/code the environment does not provide (e.g. a Python interpreter,
+  python-pptx, openpyxl, "generate the file programmatically").
+These FEEL helpful but LOWER the score: the grader marks the artifact/format
+criteria as unmet precisely because the deliverable announced it could not
+produce them. The correct rule is ALWAYS: render the full content directly as
+the deliverable, with no disclaimer.
+
+MAINTENANCE (cleanup): scan the CURRENT playbook shown above. For every EXISTING
+non-protected bullet that matches the pattern above, emit a DELETE operation:
+  {{"type": "DELETE", "bullet_id": "<that bullet's id>", "reason": "capability-disclaimer bullet"}}
+Protected/seed bullets are never deleted — do not target them.
+"""
+
+CONCRETE_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _CONCRETE_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD
+CONCRETE_CURATOR_PROMPT_NO_GT = CURATOR_PROMPT_NO_GT.replace("**Instructions:**", _CONCRETE_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD
+ABSTRACT_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _ABSTRACT_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD
+ABSTRACT_CURATOR_PROMPT_NO_GT = CURATOR_PROMPT_NO_GT.replace("**Instructions:**", _ABSTRACT_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD
+
+# ---------------------------------------------------------------------------
+# SINGLE-mode curator: ONE playbook that mixes concrete + abstract bullets,
+# distinguished by an inline predefined tag. The reflection (dual reflector)
+# carries both a concrete_insight and an abstract_insight; the curator adds each
+# genuinely-new one as its OWN bullet with the matching tag.
+# ---------------------------------------------------------------------------
+_SINGLE_CURATOR_NUDGE = (
+    "**Playbook Philosophy (SINGLE, sectioned):** You maintain ONE playbook "
+    "organized into predefined SECTIONS that act as the bullet tags. "
+    "CONCRETE-type sections hold specific, situation-tied rules: OUTPUT FORMAT & "
+    "STRUCTURE RULES, TOOL & API USAGE, FORMULAS & CALCULATIONS, CODE SNIPPETS & "
+    "TEMPLATES, COMMON MISTAKES TO AVOID, VERIFICATION CHECKLIST. ABSTRACT-type "
+    "sections hold general, transferable principles: GENERAL PRINCIPLES, "
+    "PROBLEM-SOLVING HEURISTICS, TRANSFERABLE STRATEGIES, FAILURE PATTERNS & "
+    "RECOVERY, SELF-VERIFICATION HABITS. The reflection may contain BOTH a "
+    "concrete_insight and an abstract_insight — when each is genuinely new, ADD it "
+    "and set the `section` field to the single best-fitting predefined section "
+    "(concrete_insight -> a concrete-type section; abstract_insight -> an "
+    "abstract-type section). Do NOT invent new sections.\n\n**Instructions:**"
+)
+
+SINGLE_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _SINGLE_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD
+SINGLE_CURATOR_PROMPT_NO_GT = CURATOR_PROMPT_NO_GT.replace("**Instructions:**", _SINGLE_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD

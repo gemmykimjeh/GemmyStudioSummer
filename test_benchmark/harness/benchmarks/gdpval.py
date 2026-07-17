@@ -124,14 +124,49 @@ def _score_rubric(rubric: list[dict], grades: dict[str, bool]) -> dict:
             "n_criteria": len(rubric), "n_met": n_met, "required_ok": required_ok}
 
 
+def grade_with_retry(client, model, max_tokens, prompt, n_criteria, tries=3):
+    """Call the LLM rubric grader robustly and return {rubric_item_id: met}.
+
+    The grader (Gemini via the proxy) occasionally returns malformed/truncated/empty
+    output that ``_parse_grades`` can't read -> every criterion counts as unmet -> a
+    good deliverable is scored 0. That spurious-zero is pure measurement noise. This
+    wrapper removes it: temperature 0 for a deterministic verdict, and up to ``tries``
+    attempts until we get a usable verdict set (>= half the criteria parsed); retries
+    jitter the temperature so a deterministically-malformed reply can't repeat, and a
+    transient proxy/throttle error just retries instead of scoring 0.
+    """
+    grades: dict = {}
+    need = max(1, n_criteria // 2)
+    for attempt in range(tries):
+        try:
+            g = client.messages.create(
+                model=model, max_tokens=max_tokens,
+                temperature=0.0 if attempt == 0 else 0.5,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            grades = _parse_grades(_text_of(g))
+        except Exception:  # noqa: BLE001 - transient proxy/throttle -> retry, don't score 0
+            grades = {}
+        if len(grades) >= need:
+            break
+    return grades
+
+
 class GDPvalEnv(Env):
     """Tool-free: the agent's final message is the deliverable."""
 
     def __init__(self, task: Task) -> None:
         self.task = task
+        self._obs: str | None = None
 
     def observation(self) -> str:
-        return self.task.prompt
+        # Inject the extracted content of the task's reference files (xlsx/pdf/docx/
+        # ...) so the agent reads real attachments instead of hallucinating. Cached
+        # per-Env (fetched once). Toggle with env GDPVAL_INJECT_FILES=0.
+        if self._obs is None:
+            from harness.benchmarks.gdpval_files import reference_files_text  # noqa: PLC0415
+            self._obs = self.task.prompt + reference_files_text(self.task.metadata)
+        return self._obs
 
     def instructions(self) -> str:
         return _INSTRUCTIONS
@@ -226,8 +261,22 @@ class GDPval(Benchmark):
                           error="task has no rubric_json criteria to grade against",
                           metrics={"occupation": occ, "sector": sector})
 
+        # Real GDPval deliverables are FILES. If the agent emitted Python that writes
+        # an office file (xlsx/docx/pdf/pptx), run it and grade the REAL file content +
+        # a verified manifest, so file-type/structure criteria are facts, not guesses.
+        from harness.benchmarks.gdpval_codegen import run_codegen, grader_submission  # noqa: PLC0415
+        from harness.benchmarks.gdpval_files import _fetch  # noqa: PLC0415
+        srcs = []
+        for u in (task.metadata.get("reference_file_urls") or []):
+            try:
+                srcs.append(_fetch(u))          # (cached_path, original_filename)
+            except Exception:  # noqa: BLE001
+                pass
+        cg = run_codegen(deliverable, source_files=srcs)
+        submission = grader_submission(deliverable, cg)
+
         prompt = GRADER_TEMPLATE.format(
-            prompt=task.prompt, submission=deliverable,
+            prompt=task.prompt, submission=submission,
             rubric=json.dumps([{"rubric_item_id": c.get("rubric_item_id"),
                                 "score": c.get("score"),
                                 "criterion": c.get("criterion"),
@@ -235,13 +284,19 @@ class GDPval(Benchmark):
                               ensure_ascii=False),
         )
         client = _anthropic()
-        g = client.messages.create(
-            model=self.grader_model, max_tokens=self.max_grader_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        grades = _parse_grades(_text_of(g))
+        grades = grade_with_retry(client, self.grader_model, self.max_grader_tokens,
+                                  prompt, len(rubric))
         rs = _score_rubric(rubric, grades)
         success = rs["score"] >= self.success_threshold and rs["required_ok"]
+        # Cause-tracking (for structural diagnosis, not printed): which criteria were
+        # missed + what file type the gold deliverable is, so we can later separate
+        # "lost points to a file/format we don't produce" from genuine content misses.
+        missed = [{"pts": c.get("score"), "req": bool(c.get("required")),
+                   "c": (c.get("criterion") or "")[:160]}
+                  for c in rubric if not grades.get(str(c.get("rubric_item_id")), False)]
+        import os as _os  # noqa: PLC0415
+        gold_types = sorted({_os.path.splitext(u.split("?")[0])[1].lower()
+                             for u in (task.metadata.get("deliverable_file_urls") or [])})
         return Result(
             **base, success=success, score=rs["score"],
             metrics={"rubric_score": rs["score"],
@@ -250,6 +305,10 @@ class GDPval(Benchmark):
                      "n_criteria": rs["n_criteria"], "n_met": rs["n_met"],
                      "required_ok": rs["required_ok"],
                      "deliverable_chars": len(deliverable),
+                     "missed": missed,
+                     "gold_types": gold_types,
+                     "codegen_files": cg.get("files", []),
+                     "codegen_fail": cg.get("fail_type", "none"),
                      "occupation": occ, "sector": sector},
         )
 

@@ -1,0 +1,19 @@
+Using the latest cached version of the dataset since openai/gdpval couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at C:\Users\wooja\.cache\huggingface\datasets\openai___gdpval\default\0.0.0\11e7900cdcac61bc4daf59e65feb238acda98fbf (last modified on Tue Jul  7 16:44:38 2026).
+  [ 1/10] 83d10b06  score=0.000  chars= 9050  files=[] fail=model
+  [ 2/10] f84ea6ac  score=0.966  chars= 3499  files=['AI_Automation_Research_Summary.docx'] fail=none
+  [ 3/10] 99ac6944  score=0.744  chars= 2644  files=['IEM_Rig_Proposal.pdf', 'cost_breakdown.png', 'signal_flow.png'] fail=none
+  [ 4/10] 1b1ade2d  score=0.594  chars= 4165  files=['Revised_Sourcing_Nomination_Workflow.docx'] fail=none
+  [ 5/10] 575f8679  score=0.754  chars= 3772  files=['Evaluation_Plan_Immigration_Family_Stress.docx'] fail=none
+  [ 6/10] 36d567ba  score=0.778  chars= 4360  files=['Federal_Applicant_Risk_Assessment_Tool.docx'] fail=none
+  [ 7/10] cebf301e  score=0.887  chars= 3117  files=['VoltView_Technical_Design.docx'] fail=none
+  [ 8/10] a10ec48c  score=0.429  chars= 2452  files=['Concierge Local Restaurant Recommendations (Sarasota Downtown).docx'] fail=none
+  [ 9/10] a0ef404e  score=0.793  chars= 3638  files=['Rental_Agreement_Instructional_Guide.docx'] fail=none
+  [10/10] f3351922  score=0.741  chars= 4139  files=[] fail=no_code
+
+=== PURE LLM (no tools, no agent) ===
+tasks     : 10
+MEAN      : 0.6685
+pass>=0.5 : 8/10
+zeros     : 1/10
+avg chars : 4083

@@ -1,0 +1,45 @@
+## OUTPUT FORMAT & STRUCTURE RULES
+
+## TOOL & API USAGE
+
+## FORMULAS & CALCULATIONS
+
+[calc-00001] helpful=0 harmful=0 :: When performing variance analysis on financial data, use `df.apply` with a lambda that explicitly checks for zero denominators (e.g., `if q2 == 0: return 'NA'`) to prevent `#DIV/0!` errors.
+## CODE SNIPPETS & TEMPLATES
+
+[code-00003] helpful=0 harmful=0 :: For multi-dimensional sampling: create a boolean mask for each required category (e.g., `mask = (df['Entity'] == 'A') & (df['Country'] == 'B')`) and use `df.loc[mask, 'Flag_Column'] = 1` to ensure every required row is captured before finalizing the sample.
+[code-00004] helpful=0 harmful=0 :: When a task requires specific citation styles (e.g., APA), define a helper function or dictionary template that forces the output into the exact format: 'Author(s) (Year). Title. Setting.' instead of using generic labels.
+[code-00014] helpful=0 harmful=0 :: When generating complex documents via code, define a 'rubric_requirements' dictionary or list containing every mandatory field. Iterate through this structure to populate the document sections; this ensures that constraints (e.g., 'numeric session lifetime', 'rationale for repo strategy') are explicitly addressed and prevents accidental omission.
+[code-00016] helpful=0 harmful=0 :: When using `python-docx` to insert hyperlinks, use `doc.add_paragraph().add_run().add_hyperlink(text, url)`. For table cells, access the cell's paragraph object via `cell.paragraphs[0]` to add the hyperlink run.
+[code-00017] helpful=0 harmful=0 :: Always append a 'Notes' or 'Disclaimer' paragraph at the end of generated tables to satisfy requirements for holiday, exception, or disclaimer mentions.
+## COMMON MISTAKES TO AVOID
+
+## VERIFICATION CHECKLIST
+
+[chk-00006] helpful=1 harmful=0 :: Before drafting, create a 'Requirement-to-Content' mapping table: list every rubric criterion (e.g., 'battery plan', 'routing method') and assign it a specific section or diagram label. Ensure every variable is explicitly defined and injected into the final output to guarantee no criterion is omitted.
+[chk-00008] helpful=0 harmful=0 :: For 'foundational blueprint' or 'process manual' tasks, create a 'Requirement-to-Section' map. Explicitly define every stakeholder, decision gate, and process step mentioned in the prompt as a dedicated section, table row, or paragraph to ensure exhaustive coverage.
+[chk-00010] helpful=0 harmful=0 :: For tasks with detailed rubrics, create a 'Requirement-to-Section' mapping table before drafting. For every instrument or component, use a structured format (e.g., [Name], [Respondent], [Data Type], [Purpose], [Cultural Adaptation], [Source]) to ensure every rubric criterion is explicitly addressed.
+[chk-00012] helpful=0 harmful=0 :: Before drafting, map all global requirements (e.g., 'must cite 2 C.F.R. 200') to every individual item in a list. If a prompt provides specific instructions for a subset of items, verify that these are treated as a 'minimum floor' and that the global requirements are still applied to all items, including those not mentioned in the subset.
+[chk-00020] helpful=0 harmful=0 :: When a prompt includes a detailed rubric, create a 'Requirement-to-Section' mapping dictionary where every rubric criterion is a key. Iterate through this dictionary to generate the document sections, ensuring that each requirement is explicitly rendered as a labeled field or paragraph, rather than grouping them into generic 'steps'.
+[chk-00022] helpful=0 harmful=0 :: For government-regulated or high-compliance documentation, map every rubric criterion to a specific, labeled paragraph, bullet point, or sub-bullet. If a criterion requires a specific detail (e.g., benchmark exclusions, tax rules), create a dedicated sub-bullet for that detail to ensure it is not buried. Include placeholders for mandatory URLs as the final step of the drafting process.
+## GENERAL PRINCIPLES
+
+[prin-00005] helpful=0 harmful=0 :: When a rubric requires adherence to a specific external standard, treat the standard as a structural constraint on the data schema; map every required field to the standard's syntax before rendering to ensure compliance.
+[prin-00007] helpful=1.86 harmful=0 :: Decompose complex deliverables by treating the rubric as a checklist of mandatory 'data points' rather than 'topics'. If a requirement exists, it must be represented by a distinct, labeled, and verifiable element in the output. Avoid summarizing requirements; treat each as a discrete field that must be populated to satisfy the structural integrity of the document.
+[prin-00009] helpful=0 harmful=0 :: Prioritize 'completeness of coverage' over 'conciseness of prose' for complex process design. Treat the prompt's list of requirements as a mandatory checklist; if the output does not explicitly contain every item, the deliverable is incomplete regardless of its professional tone.
+[prin-00011] helpful=1.86 harmful=0 :: Adopt a 'compliance-first' architecture for complex deliverables: define a data structure (e.g., a list of dictionaries) containing all required attributes for each section or tool, then iterate through that structure to generate the document. This forces the inclusion of every field and prevents the omission of rubric-mandated details.
+[prin-00013] helpful=0 harmful=0 :: When a task defines a global objective and then provides specific instructions for a subset of components, treat the specific instructions as a 'minimum floor' for those items, not as an exemption for the others. Always validate that the global objective is satisfied for every individual component of the deliverable.
+[unknown-0635] helpful=0 harmful=0 :: Treat complex requirements as a data-schema problem rather than a writing problem. Map every rubric criterion to a specific structural slot in the output to transform subjective 'completeness' checks into objective 'field-population' tasks, effectively eliminating the risk of missing subtle requirements.
+[prin-00018] helpful=0 harmful=0 :: Treat the rubric as the primary source of truth over the prompt's descriptive text. Map every rubric criterion to a specific line or block of code before writing the script to ensure exact header and field compliance.
+[prin-00019] helpful=0 harmful=0 :: When a task requires a list of items, prioritize exhaustive coverage over representative sampling. If the rubric implies a full dataset, provide the complete list to avoid failing 'completeness' checks.
+[prin-00023] helpful=0 harmful=0 :: Treat complex rubrics as a 'schema' rather than a 'guide.' When a task has a high density of required data points, define a rigid template that forces the inclusion of every field before writing any prose. This 'compliance-first' architecture prevents the omission of mandatory details that are easily lost in narrative flow.
+## PROBLEM-SOLVING HEURISTICS
+
+## TRANSFERABLE STRATEGIES
+
+[strat-00002] helpful=0 harmful=0.25 :: When a task requires coverage across multiple dimensions (e.g., entity, division, country), decompose the selection logic into a set of independent boolean masks. Apply each filter sequentially to a 'selected' flag column to ensure the final set is the union of all required subsets, preventing the omission of edge-case combinations.
+## FAILURE PATTERNS & RECOVERY
+
+## SELF-VERIFICATION HABITS
+
+## OTHERS

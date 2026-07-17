@@ -1,24 +1,64 @@
 # ============================================================================
-# LiteLLM translator: Anthropic Messages API  <->  Google Gemini (free tier)
+# LiteLLM KEY-ROTATION proxy: one endpoint (:4000) that fronts N Gemini free-tier
+# API keys and transparently fails over on 429 (daily-quota exhaustion).
 # ----------------------------------------------------------------------------
-# The ace_gdpval grader uses anthropic.Anthropic().messages.create; this proxy
-# translates that to Gemini so the grader runs on the free Gemini API too.
+# BOTH surfaces route through here now (single choke point, keys live in ONE
+# place — configs/gemini_keys.env — not scattered across repo .env files):
+#   * ACE brain (Generator/Reflector/Curator/Verifier): OpenAI client with
+#       GEMINI_BASE_URL=http://localhost:4000/v1  (utils.initialize_clients)
+#   * GDPval grader: anthropic SDK with ANTHROPIC_BASE_URL=http://localhost:4000
+# Same rotation logic covers ReAct (baseline) and ReAct_feedback_loop (fbl) —
+# neither repo contains any rotation code; it all lives in this config.
 #
-# Run (from test_benchmark):
-#   PYTHONUTF8=1 .venv/Scripts/litellm.exe --config configs/litellm_gemini.yaml --port 4000
-# Point the grader at it:  ANTHROPIC_BASE_URL=http://localhost:4000
-# The ACE brain (Generator/Reflector/Curator) hits Gemini directly via
-#   ACE_API_PROVIDER=gemini (utils.py -> OpenAI-compat base_url). No proxy needed for it.
+# Run:  bash scripts/start_proxy.sh      (exports GEMINI_KEY_1..N first)
 #
-# Needs GEMINI_API_KEY in the environment (free key from AI Studio).
+# Each key = its own 500 req/day/model free-tier pool. When one 429s, the router
+# cools it down and routes the request to the next key (num_retries across the
+# group). Add/remove keys by editing gemini_keys.env + the deployments below.
 # ============================================================================
 
 model_list:
-  # Any requested model name (incl. the grader's default claude-*) -> Gemini.
+  # ---- BRAIN group: exact model name the ACE brain sends, 6 keys ----------
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_1 }
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_2 }
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_3 }
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_4 }
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_5 }
+  - model_name: gemini-3.1-flash-lite
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_6 }
+  # ---- CATCH-ALL: grader's claude-* name (or anything else) -> same 6 keys -
   - model_name: "*"
-    litellm_params:
-      model: gemini/gemini-3.1-flash-lite   # pinned for A/B reproducibility
-      api_key: os.environ/GEMINI_API_KEY
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_1 }
+  - model_name: "*"
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_2 }
+  - model_name: "*"
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_3 }
+  - model_name: "*"
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_4 }
+  - model_name: "*"
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_5 }
+  - model_name: "*"
+    litellm_params: { model: gemini/gemini-3.1-flash-lite, api_key: os.environ/GEMINI_KEY_6 }
 
 litellm_settings:
   drop_params: true
+  # Custom callback that distinguishes the THREE Gemini 429s. litellm alone can't:
+  # RPD (daily), RPM, TPM are all one RateLimitError. This retires a key ONLY on an
+  # RPD (per-day) 429; RPM/TPM (per-minute) are transient and left to the short
+  # cooldown below so the key auto-recovers. See configs/rotation_cooldown.py.
+  callbacks: ["rotation_cooldown.proxy_handler_instance"]
+
+router_settings:
+  routing_strategy: simple-shuffle   # spread load across the live keys
+  num_retries: 6                     # per request, try up to 6 keys before failing
+  enable_pre_call_checks: true       # run rotation_cooldown.async_pre_call_check (skip RPD-dead keys)
+  allowed_fails: 1                   # bench a key after 1 failure...
+  cooldown_time: 65                  # ...for only 65s: rides out an RPM/TPM per-minute throttle,
+                                     # then the key returns. RPD keys get retired MUCH longer by
+                                     # the callback (RPD_COOLDOWN, default 4h) so they don't get
+                                     # re-probed every 65s. => effectively "switch only on RPD".

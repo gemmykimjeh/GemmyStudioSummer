@@ -40,9 +40,6 @@ def parse_args():
     parser.add_argument("--curator_model", type=str,
                         default="DeepSeek-V3.1",
                         help="Model for curator")
-    parser.add_argument("--verifier_model", type=str, default=None,
-                        help="Model for the 4th (Verifier) agent; defaults to the "
-                             "curator model. Ideally != reflector model (EDV).")
 
     # Dual-playbook configuration (feedback_loop.md)
     parser.add_argument("--initial_abstract_playbook_path", type=str, default=None,
@@ -50,12 +47,6 @@ def parse_args():
     parser.add_argument("--initial_concrete_playbook_path", type=str, default=None,
                         help="Path to the CONCRETE playbook seed (optional; falls "
                              "back to --initial_playbook_path)")
-    parser.add_argument("--selector_context", type=str, default="global",
-                        choices=["global", "section"],
-                        help="Thompson bandit posterior granularity for the read arm")
-    parser.add_argument("--show_both", action="store_true",
-                        help="Ablation: inject BOTH playbooks to the generator and "
-                             "disable Thompson reading (both still learn)")
 
     # Training configuration
     parser.add_argument("--num_epochs", type=int, default=1,
@@ -228,12 +219,12 @@ def main():
         print(f"Loaded concrete seed from {args.initial_concrete_playbook_path}\n")
 
     # Batched training when batch_size > 1. NOTE: ACEBatch does not implement the
-    # dual-playbook / verifier / Thompson mechanism — those kwargs are only passed
-    # to the (default) non-batch ACE.
+    # dual-playbook mechanism — those kwargs are only passed to the (default)
+    # non-batch ACE.
     if args.batch_size > 1:
-        if any([initial_abstract_playbook, initial_concrete_playbook, args.show_both]):
-            print("⚠️  batch_size > 1 uses ACEBatch, which ignores dual-playbook / "
-                  "verifier / Thompson features. Use batch_size=1 for feedback_loop.md.")
+        if any([initial_abstract_playbook, initial_concrete_playbook]):
+            print("⚠️  batch_size > 1 uses ACEBatch, which ignores the dual-playbook "
+                  "features. Use batch_size=1 for feedback_loopv2.md.")
         ace_system = ACEBatch(
             api_provider=args.api_provider,
             generator_model=args.generator_model,
@@ -256,9 +247,6 @@ def main():
             bulletpoint_analyzer_threshold=args.bulletpoint_analyzer_threshold,
             initial_abstract_playbook=initial_abstract_playbook,
             initial_concrete_playbook=initial_concrete_playbook,
-            verifier_model=args.verifier_model,
-            selector_context=args.selector_context,
-            show_both=args.show_both,
         )
     
     # Prepare configuration
@@ -279,9 +267,6 @@ def main():
         'initial_playbook_path': args.initial_playbook_path,
         'initial_abstract_playbook_path': args.initial_abstract_playbook_path,
         'initial_concrete_playbook_path': args.initial_concrete_playbook_path,
-        'verifier_model': args.verifier_model,
-        'selector_context': args.selector_context,
-        'show_both': args.show_both,
         'use_bulletpoint_analyzer': args.use_bulletpoint_analyzer,
         'bulletpoint_analyzer_threshold': args.bulletpoint_analyzer_threshold,
         'api_provider': args.api_provider,

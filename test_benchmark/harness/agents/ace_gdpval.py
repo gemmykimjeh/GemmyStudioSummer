@@ -63,7 +63,7 @@ class ACEGDPvalAgent(Agent):
         token_budget: int = 80000,
         success_threshold: float = 0.5,
         use_bulletpoint_analyzer: bool = True,
-        dedup_threshold: float = 0.80,
+        dedup_threshold: float = 0.85,
         api_key: str | None = None,
     ) -> None:
         self.model = model
@@ -137,9 +137,9 @@ class ACEGDPvalAgent(Agent):
                 f"({exc}). Set ace_path and install ace's deps.") from exc
 
         from harness.benchmarks.gdpval import (  # noqa: PLC0415 - reuse official grader
-            GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of,
+            GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of, grade_with_retry,
         )
-        self._grade = (GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of)
+        self._grade = (GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of, grade_with_retry)
 
         gen_c, ref_c, cur_c = initialize_clients(self.api_provider)
         self._generator = Generator(gen_c, self.api_provider, self.model, self.max_tokens)
@@ -154,7 +154,20 @@ class ACEGDPvalAgent(Agent):
             "get_playbook_stats": get_playbook_stats,
             "extract_playbook_bullets": extract_playbook_bullets,
         }
-        self.playbook = _EMPTY_PLAYBOOK
+        # Warm start: continue a prior run from its saved playbook instead of
+        # starting empty. The playbook is the only cross-task state; restoring it
+        # plus the id/step counters makes a resumed 51-100 equivalent to a
+        # continuous 1-100 run. Set env ACE_PLAYBOOK_IN=<playbook file> and
+        # ACE_STEP_START=<# tasks already done> when resuming.
+        _pb_in = os.environ.get("ACE_PLAYBOOK_IN")
+        if _pb_in and os.path.exists(_pb_in):
+            with open(_pb_in, encoding="utf-8") as _f:
+                self.playbook = _f.read()
+            self._step = int(os.environ.get("ACE_STEP_START", "0"))
+            print(f"[ace_gdpval] warm start from {_pb_in}: "
+                  f"{len(self.playbook)} chars, step={self._step}")
+        else:
+            self.playbook = _EMPTY_PLAYBOOK
         self.next_global_id = get_next_global_id(self.playbook)
         self._log_dir = os.path.abspath(os.path.join("ace_gdpval_run", "detailed_llm_logs"))
         os.makedirs(self._log_dir, exist_ok=True)
@@ -200,7 +213,7 @@ class ACEGDPvalAgent(Agent):
     # -- (b) benchmark feedback (data_processor role) + ACE reflect/count/curate
     def _adapt(self, task: Task, deliverable: str, bullet_ids: list) -> None:
         H = self._helpers
-        GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of = self._grade
+        GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of, grade_with_retry = self._grade
         rubric = task.metadata.get("rubric") or []
         step_id = f"gdpval_s_{self._step + 1}"
 
@@ -218,10 +231,8 @@ class ACEGDPvalAgent(Agent):
                                     "criterion": c.get("criterion"),
                                     "required": c.get("required")} for c in rubric],
                                    ensure_ascii=False))
-            g = self._client.messages.create(
-                model=self.grader_model, max_tokens=4096,
-                messages=[{"role": "user", "content": gprompt}])
-            grades = _parse_grades(_text_of(g))
+            grades = grade_with_retry(self._client, self.grader_model, 4096,
+                                      gprompt, len(rubric))
             rs = _score_rubric(rubric, grades)
         except Exception as exc:  # noqa: BLE001
             print(f"[ace_gdpval] grader failed on {task.id}: {exc}")

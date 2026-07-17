@@ -1,0 +1,25 @@
+## OUTPUT FORMAT & STRUCTURE RULES
+
+## TOOL & API USAGE
+
+## FORMULAS & CALCULATIONS
+
+## CODE SNIPPETS & TEMPLATES
+
+[code-00001] helpful=0 harmful=0 :: When generating Excel files via Python, use `xlsxwriter` or `openpyxl` to explicitly define all tabs, headers, and formulas (e.g., `worksheet.write_formula`). Ensure the script populates every required column and row as specified in the source data and concludes with the file save command.
+## COMMON MISTAKES TO AVOID
+
+## VERIFICATION CHECKLIST
+
+## GENERAL PRINCIPLES
+
+[prin-00002] helpful=0 harmful=0 :: For document-generation tasks, prioritize structural requirements (file format, tab names, column headers) as the primary framework. Treat data processing logic as a secondary step encapsulated within the generation code to ensure the final artifact is ready for immediate use.
+## PROBLEM-SOLVING HEURISTICS
+
+## TRANSFERABLE STRATEGIES
+
+## FAILURE PATTERNS & RECOVERY
+
+## SELF-VERIFICATION HABITS
+
+## OTHERS

@@ -1,0 +1,27 @@
+## OUTPUT FORMAT & STRUCTURE RULES
+[fmt-00001] helpful=0 harmful=0 :: Produce the requested artifact itself as the deliverable — the actual document, table, dataset, code, or file, with its specified name, structure, sections, and fields — not a summary, outline, plan, or a description of how you would make it.
+[fmt-00002] helpful=0 harmful=0 :: Reproduce every element the task explicitly names (titles, sections, columns, fields, ordering, units, format) exactly, and fill in all required content; do not merely describe what each part should contain.
+[fmt-00003] helpful=0 harmful=0 :: When you cannot emit a real binary or interactive file, render its full content faithfully in text (each sheet/section as a labeled table or block, with all headers, values, and formulas shown) so nothing required is omitted.
+[fmt-00014] helpful=0 harmful=0 :: Never open or pad the deliverable with statements about what you cannot do or how the reader should use it (e.g. "I can't produce this file", "copy the following into..."). If the requested artifact is a form this channel cannot emit directly (binary, interactive, image), render its full content as text and present THAT as the artifact itself; keep any note about capability limits out of the deliverable entirely (put it in reasoning if it matters).
+[fmt-00012] helpful=0 harmful=0 :: The artifact contains content, not reasoning about content. No meta-commentary, no 'this section would include…', no placeholders — every slot holds the real value.
+
+## TOOL & API USAGE
+[api-00004] helpful=0 harmful=0 :: Read a tool/API's specification (required parameters, argument names, return shape) before the first call; do not guess argument names or types.
+[api-00005] helpful=0 harmful=0 :: For paginated or batched results, iterate over all pages/batches (e.g. increment the page index until it is exhausted) instead of using only the first.
+[api-00011] helpful=0 harmful=0 :: The content of any attached or referenced file is already included in the task text (spreadsheets as tables, images transcribed). Read and use that provided content exactly before writing; never ignore, approximate, or simulate it.
+
+## FORMULAS & CALCULATIONS
+[calc-00006] helpful=0 harmful=0 :: In multi-step calculations, show intermediate values and carry units through each step; round only at the final answer, not mid-calculation.
+[calc-00007] helpful=0 harmful=0 :: Guard computations against error and edge cases: handle division-by-zero, empty/None, and out-of-range inputs, and flag missing or invalid data before finalizing the result.
+
+## CODE SNIPPETS & TEMPLATES
+
+## COMMON MISTAKES TO AVOID
+[err-00008] helpful=0 harmful=0 :: Do not perform an irreversible or destructive action (delete, send, overwrite, purchase, submit) without first confirming the exact target and that the action is actually required.
+[err-00009] helpful=0 harmful=0 :: Retrieve before you hedge: if a value is in an attachment or reachable by tool, open it. Only after retrieval fails may you mark a value unavailable — and never replace a required value with commentary about it.
+[err-00013] helpful=0 harmful=0 :: If the response format is structured (JSON, XML, CSV), it MUST parse. Escape every quote/newline/backslash inside string fields, emit exactly one well-formed object with nothing before or after it, and double-check that a long embedded document has not broken the envelope.
+
+## VERIFICATION CHECKLIST
+[chk-00010] helpful=0 harmful=0 :: Before finalizing, re-read the original request and confirm every explicit requirement and constraint (each named element, format, scope, and limit) is present and satisfied.
+
+## OTHERS

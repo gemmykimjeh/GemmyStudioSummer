@@ -1,0 +1,129 @@
+>>> ARM=fbl  AGENT=ace_dual_gdpval  ACE_PATH=/c/GemmyStudioSummer/ReAct_feedback_loop  MODEL=gemini-3.1-flash-lite  LIMIT=5  RUN_ID=gemini_fbl_raw2
+Using the latest cached version of the dataset since openai/gdpval couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at C:\Users\wooja\.cache\huggingface\datasets\openai___gdpval\default\0.0.0\11e7900cdcac61bc4daf59e65feb238acda98fbf (last modified on Tue Jul  7 16:44:38 2026).
+Running ace_dual_gdpval on gdpval (limit=5, k=1, concurrency=1) -> runs\gemini_fbl_raw2
+Using gemini API for all models
+✓ BulletpointAnalyzer initialized (threshold=0.85)
+✓ Loaded packaged seed playbook: C:\GemmyStudioSummer/ReAct_feedback_loop\ace\seeds\seed_concrete_playbook.txt
+✓ Loaded packaged seed playbook: C:\GemmyStudioSummer/ReAct_feedback_loop\ace\seeds\seed_abstract_playbook.txt
+✓ Loaded rulebook: C:\GemmyStudioSummer/ReAct_feedback_loop\ace\rulebook.txt
+[GENERATOR] Starting call gdpval_s_1_gen...
+[GENERATOR] Call gdpval_s_1_gen completed in 6.57s
+[LOG] generator call logged to generator_gdpval_s_1_gen_20260716_152816_169.json
+[REFLECTOR] Starting call gdpval_s_1_reflect_single...
+[REFLECTOR] Call gdpval_s_1_reflect_single completed in 5.10s
+[LOG] reflector call logged to reflector_gdpval_s_1_reflect_single_20260716_152828_504.json
+[CURATOR] Starting call gdpval_s_1_curate_single...
+[CURATOR] Call gdpval_s_1_curate_single completed in 4.02s
+[LOG] curator call logged to curator_gdpval_s_1_curate_single_20260716_152832_537.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet calc-00001 to section formulas_and_calculations
+  Added bullet chk-00002 to section verification_checklist
+  - ADD: No reason given
+  - ADD: No reason given
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 2 bulletpoints (threshold=0.85)...
+Loading embedding model: all-mpnet-base-v2
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 5527.78it/s]
+No similar bulletpoints found at threshold 0.85
+[ace_dual] task 1: rubric=0.44 pass~=False bullets_cited=0 playbook=324->1042
+  [FAIL] 83d10b06-26d1-4636-a32c-23f92c57f30b score=0.381
+[GENERATOR] Starting call gdpval_s_2_gen...
+[GENERATOR] Call gdpval_s_2_gen completed in 5.55s
+[LOG] generator call logged to generator_gdpval_s_2_gen_20260716_152846_703.json
+[REFLECTOR] Starting call gdpval_s_2_reflect_single...
+[REFLECTOR] Call gdpval_s_2_reflect_single completed in 4.54s
+[LOG] reflector call logged to reflector_gdpval_s_2_reflect_single_20260716_152857_735.json
+[CURATOR] Starting call gdpval_s_2_curate_single...
+[CURATOR] Call gdpval_s_2_curate_single completed in 4.29s
+[LOG] curator call logged to curator_gdpval_s_2_curate_single_20260716_152902_038.json
+✅ Curator JSON schema validated successfully: 3 operations
+  Added bullet fmt-00003 to section output_format_and_structure_rules
+  Added bullet chk-00004 to section verification_checklist
+  Added bullet ph-00005 to section problem-solving_heuristics
+  - ADD: No reason given
+  - ADD: No reason given
+  - ADD: No reason given
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 5 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_dual] task 2: rubric=0.67 pass~=True bullets_cited=0 playbook=1042->1899
+  [FAIL] f84ea6ac-8f9f-428c-b96c-d0884e30f7c7 score=0.000
+[GENERATOR] Starting call gdpval_s_3_gen...
+[GENERATOR] Call gdpval_s_3_gen completed in 6.22s
+[LOG] generator call logged to generator_gdpval_s_3_gen_20260716_152915_567.json
+[REFLECTOR] Starting call gdpval_s_3_reflect_single...
+[REFLECTOR] Call gdpval_s_3_reflect_single completed in 4.89s
+[LOG] reflector call logged to reflector_gdpval_s_3_reflect_single_20260716_152928_928.json
+[CURATOR] Starting call gdpval_s_3_curate_single...
+[CURATOR] Call gdpval_s_3_curate_single completed in 3.86s
+[LOG] curator call logged to curator_gdpval_s_3_curate_single_20260716_152932_802.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet fmt-00006 to section output_format_and_structure_rules
+  Added bullet prin-00007 to section general_principles
+  - ADD: No reason given
+  - ADD: No reason given
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 7 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_dual] task 3: rubric=0.70 pass~=True bullets_cited=1 playbook=1899->2582
+  [PASS] 99ac6944-4ec6-4848-959c-a460ac705c6f score=0.707
+[GENERATOR] Starting call gdpval_s_4_gen...
+[GENERATOR] Call gdpval_s_4_gen completed in 7.51s
+[LOG] generator call logged to generator_gdpval_s_4_gen_20260716_152952_097.json
+[REFLECTOR] Starting call gdpval_s_4_reflect_single...
+[REFLECTOR] Call gdpval_s_4_reflect_single completed in 4.66s
+[LOG] reflector call logged to reflector_gdpval_s_4_reflect_single_20260716_153008_589.json
+[CURATOR] Starting call gdpval_s_4_curate_single...
+[CURATOR] Call gdpval_s_4_curate_single completed in 3.74s
+[LOG] curator call logged to curator_gdpval_s_4_curate_single_20260716_153012_346.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet fmt-00008 to section output_format_and_structure_rules
+  Added bullet prin-00009 to section general_principles
+  - ADD: No reason given
+  - ADD: No reason given
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 9 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_dual] task 4: rubric=0.65 pass~=True bullets_cited=1 playbook=2582->3323
+  [PASS] 1b1ade2d-f9f6-4a04-baa5-aa15012b53be score=0.797
+[GENERATOR] Starting call gdpval_s_5_gen...
+[GENERATOR] Call gdpval_s_5_gen completed in 7.19s
+[LOG] generator call logged to generator_gdpval_s_5_gen_20260716_153029_510.json
+[REFLECTOR] Starting call gdpval_s_5_reflect_single...
+[REFLECTOR] Call gdpval_s_5_reflect_single completed in 4.13s
+[LOG] reflector call logged to reflector_gdpval_s_5_reflect_single_20260716_153042_372.json
+[CURATOR] Starting call gdpval_s_5_curate_single...
+[CURATOR] Call gdpval_s_5_curate_single completed in 3.74s
+[LOG] curator call logged to curator_gdpval_s_5_curate_single_20260716_153046_122.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet chk-00010 to section verification_checklist
+  Added bullet prin-00011 to section general_principles
+  - ADD: No reason given
+  - ADD: No reason given
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 11 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+  Running BulletpointAnalyzer (threshold=0.85)...
+Analyzing 11 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+  [compress] single playbook 3957->3957 chars
+[ace_dual] task 5: rubric=0.92 pass~=True bullets_cited=2 playbook=3323->3957
+  [PASS] 575f8679-b4c1-47a2-8e96-d570d4ed9269 score=0.831
+
+=== summary ===
+tasks:        5
+success rate: 60.0%
+mean score:   0.543
+total cost:   $0.0000
+errors:       0
+
+=== pass^1 by domain ===
+  domain           tasks trials  pass@1  pass^1
+  gdpval               5      5   0.600   0.600
+  OVERALL              5      5   0.600   0.600
+
+GDPval: mean rubric score 0.543 over 5 task(s) (success = rubric_score >= 0.5).
+
+results:      runs\gemini_fbl_raw2/gdpval__ace_dual_gdpval/
+report:       python -m harness.report runs\gemini_fbl_raw2

@@ -48,10 +48,18 @@ def initialize_clients(api_provider):
         # Google Gemini via its OpenAI-compatible endpoint. Free tier key from
         # AI Studio in GEMINI_API_KEY. 1M context -> runs at ACE's real operating
         # point (no local caps). Model id passed separately, e.g. gemini-3.1-flash-lite.
-        base_url = "https://generativelanguage.googleapis.com/v1beta/openai/"
+        #
+        # GEMINI_BASE_URL overrides the endpoint: set it to the LiteLLM rotation
+        # proxy (http://localhost:4000/v1) to route the brain through multi-key
+        # 429 failover; unset = direct to Gemini on the single GEMINI_API_KEY.
+        base_url = os.getenv("GEMINI_BASE_URL",
+                             "https://generativelanguage.googleapis.com/v1beta/openai/")
         api_key = os.getenv('GEMINI_API_KEY') or os.getenv('GOOGLE_API_KEY', '')
         if not api_key:
-            raise ValueError("GEMINI_API_KEY not found in environment variables")
+            if os.getenv("GEMINI_BASE_URL"):
+                api_key = "sk-proxy-rotation"   # proxy holds the real keys; any value works
+            else:
+                raise ValueError("GEMINI_API_KEY not found in environment variables")
     else:
         raise ValueError(
             f"Invalid api_provider name: {api_provider}. Must be 'sambanova', 'together', 'openai', 'commonstack', 'anthropic', or 'gemini'"

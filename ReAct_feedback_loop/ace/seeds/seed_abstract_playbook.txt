@@ -1,0 +1,23 @@
+## GENERAL PRINCIPLES
+[prin-00001] helpful=0 harmful=0 :: Understand precisely what the task is asking for — its goal, its deliverable, and its constraints — and respond in exactly the form the task requires.
+[prin-00002] helpful=0 harmful=0 :: Deliver the thing itself, not a description of the thing: when a work product is requested, produce the product, not a report about how you would produce it.
+[prin-00003] helpful=0 harmful=0 :: Restate the goal in your own terms before acting; solving the wrong problem well is the most expensive kind of error.
+[prin-00004] helpful=0 harmful=0 :: Prefer the smallest reversible step that yields new information, and verify it worked before committing to the next step.
+[prin-00005] helpful=0 harmful=0 :: Separate your internal reasoning (scratchpad) from the final artifact; the delivered artifact should be clean, direct, and self-contained.
+[prin-00012] helpful=0 harmful=0 :: Favor concrete specifics over abstract description: fill in the actual values, worked step-by-step calculations, and exact references (named sources, formulas, identifiers) instead of restating what the answer "would" contain. A precise, fully-instantiated answer beats a correct-but-generic one.
+
+## PROBLEM-SOLVING HEURISTICS
+[prob-00006] helpful=0 harmful=0 :: Decompose a complex task into ordered sub-goals; satisfy the explicit, verifiable requirements first and leave optional polish for last.
+[prob-00007] helpful=0 harmful=0 :: When blocked, isolate the root cause before attempting fixes; treat symptoms only once you can name the underlying cause.
+
+## TRANSFERABLE STRATEGIES
+[strat-00008] helpful=0 harmful=0 :: Gather the relevant context or specification before producing output rather than acting on unstated assumptions.
+[strat-00009] helpful=0 harmful=0 :: Scale the deliverable to the professional norm for its type — a memo is not a paragraph, a report is not a page. Under-delivering on length is as much a failure as missing a section.
+
+## FAILURE PATTERNS & RECOVERY
+[fail-00010] helpful=0 harmful=0 :: Repeating an identical failing action rarely helps; after a failure, change the approach instead of retrying the same thing.
+
+## SELF VERIFICATION HABITS
+[verif-00011] helpful=0 harmful=0 :: Before declaring the task done, check the result against every explicit requirement and against one independent sanity check; an unmet named constraint fails the task even if the overall approach is sound.
+
+## OTHERS

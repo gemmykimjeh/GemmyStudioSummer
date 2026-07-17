@@ -1,0 +1,30 @@
+## STRATEGIES & INSIGHTS
+
+[sai-00001] helpful=0 harmful=0 :: When a prompt requests an Excel or CSV output, prioritize the creation of the file structure (tabs, columns, formatting) over textual summaries. Treat the task as a data-processing operation rather than a text-generation task.
+[sai-00005] helpful=0 harmful=0 :: When a prompt includes a detailed rubric (e.g., bullet points within table cells, specific citation styles), treat these as hard constraints. Perform a post-generation verification step to ensure every cell and citation matches the requested format before finalizing the output.
+[sai-00007] helpful=0 harmful=0 :: For complex technical deliverables, treat the prompt's rubric as a mandatory 'Definition of Done' checklist. Before drafting, generate a structural outline to ensure all required file formats (e.g., PDF, PNG diagrams), external links, and specific technical specifications are accounted for.
+[sai-00009] helpful=3 harmful=0 :: When tasked with creating a foundational process blueprint or workflow document, perform a 'Requirement-to-Content' mapping: list every stakeholder, document type (e.g., TRSO, TRAR), and component (e.g., child parts) mentioned in the prompt. Before drafting, create a structural outline that explicitly allocates a section or bullet point to each of these identified items to ensure comprehensive coverage.
+[sai-00011] helpful=0 harmful=0 :: When a prompt requests the inclusion of instruments, tools, or appendices, do not merely list or name them. You must provide the actual structure, sample questions, or a detailed summary of the tool's content to demonstrate its applicability to the specific population and context requested.
+[sai-00013] helpful=0 harmful=0 :: When a prompt provides requirements that vary by subset (e.g., 'do X for items 1-5, do X+Y for items 6-10'), treat the most stringent requirements as the baseline for the entire set. Do not allow subset boundaries to limit the application of mandatory constraints like citations or specific question formats.
+[sai-00016] helpful=0 harmful=0 :: When a prompt includes a technical rubric or specific constraints (e.g., numeric TTLs, scalability strategies, data sync mechanisms), treat the response as a compliance exercise. Explicitly map every rubric item to a dedicated section or bullet point in your output to ensure no granular detail is omitted in favor of a high-level summary.
+## FORMULAS & CALCULATIONS
+
+[calc-00002] helpful=0 harmful=0 :: For variance analysis, always implement Excel formulas that handle potential division-by-zero errors (e.g., using IFERROR(formula, 0)) to ensure the output remains clean and functional.
+## CODE SNIPPETS & TEMPLATES
+
+## COMMON MISTAKES TO AVOID
+
+[err-00004] helpful=0 harmful=0 :: Avoid providing a text-based summary of calculations when a downloadable file is requested. Ensure all statistical formulas (like sample size calculations using Z-scores and FPC) are embedded directly into the Excel workbook tabs.
+[err-00008] helpful=0 harmful=0 :: Avoid providing text-only summaries for technical proposals. If a prompt requests specific file formats (PDF, PNG) or technical verification of hardware features, explicitly confirm each requirement is met in the final output to prevent the model from defaulting to a generic summary.
+[err-00010] helpful=3 harmful=0 :: Avoid prioritizing brevity or high-level summaries when the prompt asks for a process blueprint. If the prompt provides specific procedural terminology or a list of stakeholders, failing to integrate every single one into the workflow steps is a critical error that renders the output incomplete.
+[err-00012] helpful=0 harmful=0 :: Avoid omitting specific geographic, demographic, or purpose-driven context provided in the prompt. If the prompt specifies a region (e.g., Northwest Kansas) or a specific audience (e.g., Executive Director), ensure these are explicitly woven into the narrative and methodology sections to demonstrate alignment with the organization's unique requirements.
+[err-00014] helpful=0 harmful=0 :: Avoid 'selective compliance' where constraints are only applied to specific subsets of a list. Before finalizing, perform a 'Requirement-to-Content' mapping to ensure every item in a list adheres to the most comprehensive set of instructions provided in the prompt.
+[err-00017] helpful=0 harmful=0 :: Avoid 'summarization bias' where the model prioritizes a clean, professional narrative over the exhaustive, checklist-driven detail required by a rubric. If a prompt asks for technical specifications, failing to provide concrete values (e.g., session lifetimes, specific database strategies) is a failure to meet the core requirement.
+## PROBLEM-SOLVING HEURISTICS
+
+## CONTEXT CLUES & INDICATORS
+
+## OTHERS
+[misc-00003] helpful=2 harmful=0 :: For multi-criteria sampling tasks, create a systematic mapping table or logic flow to ensure every constraint is satisfied. Verify that the final selection covers all required categories (e.g., specific entities, risk weightings, and business lines) before finalizing the 'Sample' column.
+[misc-00006] helpful=2 harmful=0 :: For research-based tasks, default to APA citation style (Author, A. A. (Year). Title. Journal.) unless otherwise specified. When a Word document format is requested, structure the content with clear headings and table layouts that are optimized for direct copy-pasting into a document processor.
+[misc-00015] helpful=0 harmful=0 :: When a prompt requests a document (e.g., .docx, tool, or report), prioritize structural formatting such as clear headings, table layouts, and consistent numbering. This ensures the output is ready for professional document processing and avoids the need for manual reformatting.

@@ -1,0 +1,211 @@
+>>> ARM=baseline  AGENT=ace_gdpval  ACE_PATH=/c/GemmyStudioSummer/ReAct  MODEL=gemini-3.1-flash-lite  LIMIT=10  RUN_ID=cmp_baseline
+Using the latest cached version of the dataset since openai/gdpval couldn't be found on the Hugging Face Hub (offline mode is enabled).
+Found the latest cached dataset configuration 'default' at C:\Users\wooja\.cache\huggingface\datasets\openai___gdpval\default\0.0.0\11e7900cdcac61bc4daf59e65feb238acda98fbf (last modified on Tue Jul  7 16:44:38 2026).
+Running ace_gdpval on gdpval (limit=10, k=1, concurrency=1) -> runs\cmp_baseline
+Using gemini API for all models
+[GENERATOR] Starting call gdpval_s_1_gen...
+[GENERATOR] Call gdpval_s_1_gen completed in 5.04s
+[LOG] generator call logged to generator_gdpval_s_1_gen_20260717_005045_804.json
+[REFLECTOR] Starting call gdpval_s_1_reflect...
+[REFLECTOR] Call gdpval_s_1_reflect completed in 4.39s
+[LOG] reflector call logged to reflector_gdpval_s_1_reflect_20260717_005056_950.json
+[CURATOR] Starting call gdpval_s_1...
+[CURATOR] Call gdpval_s_1 completed in 4.36s
+[LOG] curator call logged to curator_gdpval_s_1_20260717_005101_318.json
+✅ Curator JSON schema validated successfully: 4 operations
+  Added bullet sai-00001 to section strategies_and_insights
+  Added bullet calc-00002 to section formulas_and_calculations
+Warning: Section 'problem_solving_heuristics' not found, adding to OTHERS
+  Added bullet misc-00003 to section others
+  Added bullet err-00004 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 4 bulletpoints (threshold=0.85)...
+Loading embedding model: all-mpnet-base-v2
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 8300.43it/s]
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 1: rubric=0.00 pass~=False bullets_cited=0 tags=0 curator_ops=4 playbook_chars=1259->1259 (dedup)
+  [FAIL] 83d10b06-26d1-4636-a32c-23f92c57f30b score=0.000
+[GENERATOR] Starting call gdpval_s_2_gen...
+[GENERATOR] Call gdpval_s_2_gen completed in 4.61s
+[LOG] generator call logged to generator_gdpval_s_2_gen_20260717_005113_654.json
+[REFLECTOR] Starting call gdpval_s_2_reflect...
+[REFLECTOR] Call gdpval_s_2_reflect completed in 4.21s
+[LOG] reflector call logged to reflector_gdpval_s_2_reflect_20260717_005123_937.json
+[CURATOR] Starting call gdpval_s_2...
+[CURATOR] Call gdpval_s_2 completed in 3.93s
+[LOG] curator call logged to curator_gdpval_s_2_20260717_005127_876.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00005 to section strategies_and_insights
+  Added bullet misc-00006 to section others
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 6 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 2: rubric=0.71 pass~=True bullets_cited=2 tags=2 curator_ops=2 playbook_chars=1905->1905 (dedup)
+  [PASS] f84ea6ac-8f9f-428c-b96c-d0884e30f7c7 score=0.707
+[GENERATOR] Starting call gdpval_s_3_gen...
+[GENERATOR] Call gdpval_s_3_gen completed in 4.65s
+[LOG] generator call logged to generator_gdpval_s_3_gen_20260717_005139_199.json
+[REFLECTOR] Starting call gdpval_s_3_reflect...
+[REFLECTOR] Call gdpval_s_3_reflect completed in 4.26s
+[LOG] reflector call logged to reflector_gdpval_s_3_reflect_20260717_005151_691.json
+[CURATOR] Starting call gdpval_s_3...
+[CURATOR] Call gdpval_s_3 completed in 3.89s
+[LOG] curator call logged to curator_gdpval_s_3_20260717_005155_588.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00007 to section strategies_and_insights
+  Added bullet err-00008 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 8 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 3: rubric=0.27 pass~=False bullets_cited=1 tags=1 curator_ops=2 playbook_chars=2552->2552 (dedup)
+  [FAIL] 99ac6944-4ec6-4848-959c-a460ac705c6f score=0.268
+[GENERATOR] Starting call gdpval_s_4_gen...
+[GENERATOR] Call gdpval_s_4_gen completed in 5.31s
+[LOG] generator call logged to generator_gdpval_s_4_gen_20260717_005209_858.json
+[REFLECTOR] Starting call gdpval_s_4_reflect...
+[REFLECTOR] Call gdpval_s_4_reflect completed in 4.30s
+[LOG] reflector call logged to reflector_gdpval_s_4_reflect_20260717_005221_943.json
+[CURATOR] Starting call gdpval_s_4...
+[CURATOR] Call gdpval_s_4 completed in 4.29s
+[LOG] curator call logged to curator_gdpval_s_4_20260717_005226_242.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00009 to section strategies_and_insights
+  Added bullet err-00010 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 10 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 4: rubric=0.43 pass~=False bullets_cited=0 tags=0 curator_ops=2 playbook_chars=3326->3326 (dedup)
+  [FAIL] 1b1ade2d-f9f6-4a04-baa5-aa15012b53be score=0.435
+[GENERATOR] Starting call gdpval_s_5_gen...
+[GENERATOR] Call gdpval_s_5_gen completed in 5.12s
+[LOG] generator call logged to generator_gdpval_s_5_gen_20260717_005240_374.json
+[REFLECTOR] Starting call gdpval_s_5_reflect...
+[REFLECTOR] Call gdpval_s_5_reflect completed in 4.64s
+[LOG] reflector call logged to reflector_gdpval_s_5_reflect_20260717_005252_779.json
+[CURATOR] Starting call gdpval_s_5...
+[CURATOR] Call gdpval_s_5 completed in 4.13s
+[LOG] curator call logged to curator_gdpval_s_5_20260717_005256_916.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00011 to section strategies_and_insights
+  Added bullet err-00012 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 12 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 5: rubric=0.58 pass~=True bullets_cited=3 tags=3 curator_ops=2 playbook_chars=4044->4044 (dedup)
+  [PASS] 575f8679-b4c1-47a2-8e96-d570d4ed9269 score=0.585
+[GENERATOR] Starting call gdpval_s_6_gen...
+[GENERATOR] Call gdpval_s_6_gen completed in 5.46s
+[LOG] generator call logged to generator_gdpval_s_6_gen_20260717_005312_009.json
+[REFLECTOR] Starting call gdpval_s_6_reflect...
+[REFLECTOR] Call gdpval_s_6_reflect completed in 5.22s
+[LOG] reflector call logged to reflector_gdpval_s_6_reflect_20260717_005322_781.json
+[CURATOR] Starting call gdpval_s_6...
+[CURATOR] Call gdpval_s_6 completed in 4.20s
+[LOG] curator call logged to curator_gdpval_s_6_20260717_005326_987.json
+✅ Curator JSON schema validated successfully: 3 operations
+  Added bullet sai-00013 to section strategies_and_insights
+  Added bullet err-00014 to section common_mistakes_to_avoid
+  Added bullet misc-00015 to section others
+  - ADD: No reason given
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 15 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 6: rubric=0.70 pass~=True bullets_cited=5 tags=5 curator_ops=3 playbook_chars=5004->5004 (dedup)
+  [PASS] 36d567ba-e205-4313-9756-931c6e4691fe score=0.704
+[GENERATOR] Starting call gdpval_s_7_gen...
+[GENERATOR] Call gdpval_s_7_gen completed in 5.88s
+[LOG] generator call logged to generator_gdpval_s_7_gen_20260717_005339_891.json
+[REFLECTOR] Starting call gdpval_s_7_reflect...
+[REFLECTOR] Call gdpval_s_7_reflect completed in 4.51s
+[LOG] reflector call logged to reflector_gdpval_s_7_reflect_20260717_005351_135.json
+[CURATOR] Starting call gdpval_s_7...
+[CURATOR] Call gdpval_s_7 completed in 4.09s
+[LOG] curator call logged to curator_gdpval_s_7_20260717_005355_232.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00016 to section strategies_and_insights
+  Added bullet err-00017 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 17 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 7: rubric=0.89 pass~=True bullets_cited=4 tags=4 curator_ops=2 playbook_chars=5749->5749 (dedup)
+  [PASS] cebf301e-5ea7-41ae-b117-ad8f43e7ac22 score=0.887
+[GENERATOR] Starting call gdpval_s_8_gen...
+[GENERATOR] Call gdpval_s_8_gen completed in 4.91s
+[LOG] generator call logged to generator_gdpval_s_8_gen_20260717_005407_677.json
+[REFLECTOR] Starting call gdpval_s_8_reflect...
+[REFLECTOR] Call gdpval_s_8_reflect completed in 4.58s
+[LOG] reflector call logged to reflector_gdpval_s_8_reflect_20260717_005417_347.json
+[CURATOR] Starting call gdpval_s_8...
+[CURATOR] Call gdpval_s_8 completed in 4.04s
+[LOG] curator call logged to curator_gdpval_s_8_20260717_005421_404.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00018 to section strategies_and_insights
+  Added bullet err-00019 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 19 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 8: rubric=0.54 pass~=True bullets_cited=7 tags=6 curator_ops=2 playbook_chars=6519->6519 (dedup)
+  [PASS] a10ec48c-168e-476c-8fe3-23b2a5f616ac score=0.543
+[GENERATOR] Starting call gdpval_s_9_gen...
+[GENERATOR] Call gdpval_s_9_gen completed in 5.73s
+[LOG] generator call logged to generator_gdpval_s_9_gen_20260717_005433_728.json
+[REFLECTOR] Starting call gdpval_s_9_reflect...
+[REFLECTOR] Call gdpval_s_9_reflect completed in 4.54s
+[LOG] reflector call logged to reflector_gdpval_s_9_reflect_20260717_005445_234.json
+[CURATOR] Starting call gdpval_s_9...
+[CURATOR] Call gdpval_s_9 completed in 4.17s
+[LOG] curator call logged to curator_gdpval_s_9_20260717_005449_408.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00020 to section strategies_and_insights
+  Added bullet sai-00021 to section strategies_and_insights
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 21 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 9: rubric=0.72 pass~=True bullets_cited=5 tags=4 curator_ops=2 playbook_chars=7199->7199 (dedup)
+  [PASS] a0ef404e-82a6-4507-bff1-633d7c8e0004 score=0.724
+[GENERATOR] Starting call gdpval_s_10_gen...
+[GENERATOR] Call gdpval_s_10_gen completed in 5.52s
+[LOG] generator call logged to generator_gdpval_s_10_gen_20260717_005503_431.json
+[REFLECTOR] Starting call gdpval_s_10_reflect...
+[REFLECTOR] Call gdpval_s_10_reflect completed in 4.65s
+[LOG] reflector call logged to reflector_gdpval_s_10_reflect_20260717_005518_075.json
+[CURATOR] Starting call gdpval_s_10...
+[CURATOR] Call gdpval_s_10 completed in 4.17s
+[LOG] curator call logged to curator_gdpval_s_10_20260717_005522_243.json
+✅ Curator JSON schema validated successfully: 2 operations
+  Added bullet sai-00022 to section strategies_and_insights
+  Added bullet err-00023 to section common_mistakes_to_avoid
+  - ADD: No reason given
+  - ADD: No reason given
+Analyzing 23 bulletpoints (threshold=0.85)...
+No similar bulletpoints found at threshold 0.85
+[ace_gdpval] task 10: rubric=0.62 pass~=True bullets_cited=6 tags=6 curator_ops=2 playbook_chars=8161->8161 (dedup)
+  [PASS] f3351922-dbdd-45da-85c5-e7110696bbe5 score=0.624
+
+=== summary ===
+tasks:        10
+success rate: 70.0%
+mean score:   0.548
+total cost:   $0.0000
+errors:       0
+
+=== pass^1 by domain ===
+  domain           tasks trials  pass@1  pass^1
+  gdpval              10     10   0.700   0.700
+  OVERALL             10     10   0.700   0.700
+
+GDPval: mean rubric score 0.548 over 10 task(s) (success = rubric_score >= 0.5).
+
+results:      runs\cmp_baseline/gdpval__ace_gdpval/
+report:       python -m harness.report runs\cmp_baseline

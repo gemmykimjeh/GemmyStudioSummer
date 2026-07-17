@@ -14,12 +14,19 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Optional, Any
 
 from .core import (
-    Generator, Reflector, Curator, Verifier,
-    PlaybookSelector, auto_distill, BulletpointAnalyzer,
+    Generator, Reflector, Curator, BulletpointAnalyzer,
+    auto_distill, format_window,
 )
 from playbook_utils import *
 from logger import *
 from utils import *
+
+# ---------------------------------------------------------------------------
+# ABSTRACT window size (tumbling). The abstract playbook is built from CROSS-TASK
+# patterns, so abstract curation runs once per k tasks over the k distilled
+# episodes (concrete curation stays per-task). Change k HERE only.
+# ---------------------------------------------------------------------------
+ABSTRACT_WINDOW_K = 5
 
 
 class ACE:
@@ -45,10 +52,10 @@ class ACE:
         bulletpoint_analyzer_threshold: float = 0.90,
         initial_abstract_playbook: Optional[str] = None,
         initial_concrete_playbook: Optional[str] = None,
-        verifier_model: Optional[str] = None,
-        selector_context: str = "global",
-        show_both: bool = False,
-        selector_posteriors: Optional[Dict[str, Any]] = None
+        abstract_window_k: int = ABSTRACT_WINDOW_K,
+        initial_single_playbook: Optional[str] = None,
+        rulebook_path: Optional[str] = None,
+        compress_every_k: int = ABSTRACT_WINDOW_K,
     ):
         """
         Initialize the ACE system.
@@ -67,13 +74,9 @@ class ACE:
                 (AEL semantic-memory store); empty w/ section headers if None.
             initial_concrete_playbook: seed content for the CONCRETE playbook
                 (stock ACE store); empty w/ section headers if None.
-            verifier_model: model for the 4th (Verifier) agent; ideally != the
-                reflector model (EDV). Defaults to the curator model.
-            selector_context: "global" or "section" — Thompson bandit posterior
-                granularity for choosing which playbook the Generator reads.
-            show_both: ablation — inject BOTH playbooks to the Generator and
-                disable Thompson reading (both still learn).
-            selector_posteriors: optional persisted bandit posteriors to resume.
+
+        The Generator always reads BOTH playbooks (a labeled two-part view via
+        `_merged_playbook`); there is no Thompson selector in this version.
         """
         # Initialize API clients
         generator_client, reflector_client, curator_client = initialize_clients(api_provider)
@@ -82,10 +85,6 @@ class ACE:
         self.generator = Generator(generator_client, api_provider, generator_model, max_tokens)
         self.reflector = Reflector(reflector_client, api_provider, reflector_model, max_tokens)
         self.curator = Curator(curator_client, api_provider, curator_model, max_tokens)
-        # Verifier: default-reject auditor (EDV). Ideally a different model than
-        # the reflector; reuse the curator client (provider-level wrapper).
-        self.verifier_model = verifier_model or curator_model
-        self.verifier = Verifier(curator_client, api_provider, self.verifier_model, max_tokens)
 
         # Initialize bulletpoint analyzer if requested and available
         self.use_bulletpoint_analyzer = use_bulletpoint_analyzer
@@ -108,13 +107,15 @@ class ACE:
         self.max_tokens = max_tokens
 
         # --- Dual playbooks --------------------------------------------------
-        # CONCRETE = stock ACE store. Back-compat: a legacy `initial_playbook`
-        # seeds the concrete store when no explicit concrete seed is provided.
-        concrete_seed = initial_concrete_playbook or initial_playbook
-        self.concrete_pb = concrete_seed if concrete_seed else self._initialize_empty_playbook()
-        self.abstract_pb = (initial_abstract_playbook
-                            if initial_abstract_playbook
-                            else self._initialize_empty_playbook())
+        # Both stores START FROM a predefined seed playbook (not a freshly
+        # generated empty skeleton). Resolution order per store:
+        #   explicit arg  >  legacy initial_playbook (concrete only)  >
+        #   packaged seed file (ace/seeds/*)  >  empty split skeleton.
+        # The packaged seeds carry immutable (protected) starter bullets split
+        # into concrete- vs abstract-appropriate sections (feedback_loop.md §9).
+        concrete_seed = initial_concrete_playbook or initial_playbook or self._default_concrete_seed()
+        self.concrete_pb = concrete_seed
+        self.abstract_pb = initial_abstract_playbook or self._default_abstract_seed()
 
         # Seed bullets are immutable → capture their IDs so the curator's
         # protected-id guard never edits/removes them.
@@ -125,20 +126,42 @@ class ACE:
         self.next_global_id = get_next_global_id(self.concrete_pb)
         self.next_global_id_abstract = get_next_global_id(self.abstract_pb)
 
-        # Thompson selector (AEL fast-timescale bandit) over the reading arm.
-        self.selector_context = selector_context
-        self.show_both = show_both
-        self.selector = PlaybookSelector(context=selector_context,
-                                         seed_posteriors=selector_posteriors)
+        # Abstract playbook is built from CROSS-TASK patterns: distill each task
+        # into an episodic record, buffer them, and curate the abstract store once
+        # per k tasks (tumbling window). Buffer is persisted → survives warm-start
+        # (a crash mid-window must NOT restart the count).
+        self.abstract_window_k = abstract_window_k
+        self._abstract_buffer = []   # list[dict] episodic records for the open window
 
         # `self.playbook` is kept as a live alias of the concrete store so all
         # existing test/eval/save code paths keep working unchanged.
         self.playbook = self.concrete_pb
         self.best_playbook = self.playbook
         self.best_abstract_playbook = self.abstract_pb
+
+        # --- Single-playbook mode (rulebook + ONE sectioned playbook) -------
+        # Canonical feedback_loop v2 path. An IMMUTABLE rulebook (merged former
+        # seeds; never added-to / edited / deleted) is shown every task and takes
+        # precedence over everything. The learned `single_pb` holds both concrete
+        # and abstract bullets, distinguished by the predefined SECTION each is
+        # filed under (the section header is the bullet's "tag"). Grown by ONE
+        # dual reflector + ONE (section-aware) curator, counted by the grader-
+        # aligned weights, pruned by net-harmful, and compressed every k tasks.
+        # Coexists with the dual attrs above; a caller picks a path.
+        self._rulebook_path = rulebook_path or os.path.join(
+            os.path.dirname(__file__), "rulebook.txt")
+        self.rulebook = self._read_rulebook()
+        self.single_pb = initial_single_playbook or self._empty_single_skeleton()
+        self.next_single_id = get_next_global_id(self.single_pb)
+        self.compress_every_k = compress_every_k
+        self._tasks_since_compress = 0
     
     def _initialize_empty_playbook(self) -> str:
-        """Initialize an empty playbook with standard sections."""
+        """Initialize an empty playbook with standard (stock ACE) sections.
+
+        Kept for back-compat. The dual-playbook path uses the split
+        concrete/abstract skeletons + packaged seeds below instead.
+        """
         return """## STRATEGIES & INSIGHTS
 
 ## FORMULAS & CALCULATIONS
@@ -150,6 +173,94 @@ class ACE:
 ## PROBLEM-SOLVING HEURISTICS
 
 ## CONTEXT CLUES & INDICATORS
+
+## OTHERS"""
+
+    # Packaged seed playbooks live next to this module: ace/seeds/*.txt
+    _SEED_DIR = os.path.join(os.path.dirname(__file__), "seeds")
+
+    def _read_seed(self, filename: str, fallback: str) -> str:
+        """Read a packaged seed playbook; fall back to an empty skeleton."""
+        path = os.path.join(self._SEED_DIR, filename)
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            if content:
+                print(f"✓ Loaded packaged seed playbook: {path}")
+                return content
+        except OSError as e:
+            print(f"Warning: could not read seed {path} ({e}); using empty skeleton")
+        return fallback
+
+    def _read_rulebook(self) -> str:
+        """Read the IMMUTABLE rulebook (merged former seeds). Never mutated."""
+        try:
+            with open(self._rulebook_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+            if content:
+                print(f"✓ Loaded rulebook: {self._rulebook_path}")
+                return content
+        except OSError as e:
+            print(f"Warning: could not read rulebook {self._rulebook_path} ({e})")
+        return "# RULEBOOK (empty)"
+
+    def _empty_single_skeleton(self) -> str:
+        """Empty single playbook, pre-seeded with the predefined SECTION taxonomy
+        that acts as the bullet 'tags'. Concrete-type sections hold specific,
+        situation-tied rules; abstract-type sections hold general principles. The
+        curator files each learned bullet under the right predefined section."""
+        return (
+            "## OUTPUT FORMAT & STRUCTURE RULES\n\n"
+            "## TOOL & API USAGE\n\n"
+            "## FORMULAS & CALCULATIONS\n\n"
+            "## CODE SNIPPETS & TEMPLATES\n\n"
+            "## COMMON MISTAKES TO AVOID\n\n"
+            "## VERIFICATION CHECKLIST\n\n"
+            "## GENERAL PRINCIPLES\n\n"
+            "## PROBLEM-SOLVING HEURISTICS\n\n"
+            "## TRANSFERABLE STRATEGIES\n\n"
+            "## FAILURE PATTERNS & RECOVERY\n\n"
+            "## SELF-VERIFICATION HABITS\n\n"
+            "## OTHERS\n"
+        )
+
+    def _default_concrete_seed(self) -> str:
+        """Predefined CONCRETE seed: specific, situation-tied starter rules."""
+        return self._read_seed("seed_concrete_playbook.txt",
+                               self._empty_concrete_skeleton())
+
+    def _default_abstract_seed(self) -> str:
+        """Predefined ABSTRACT seed: general, transferable starter principles."""
+        return self._read_seed("seed_abstract_playbook.txt",
+                               self._empty_abstract_skeleton())
+
+    def _empty_concrete_skeleton(self) -> str:
+        """Concrete-flavored empty skeleton (specific, situation-tied sections)."""
+        return """## OUTPUT FORMAT & STRUCTURE RULES
+
+## TOOL & API USAGE
+
+## FORMULAS & CALCULATIONS
+
+## CODE SNIPPETS & TEMPLATES
+
+## COMMON MISTAKES TO AVOID
+
+## VERIFICATION CHECKLIST
+
+## OTHERS"""
+
+    def _empty_abstract_skeleton(self) -> str:
+        """Abstract-flavored empty skeleton (general, transferable sections)."""
+        return """## GENERAL PRINCIPLES
+
+## PROBLEM-SOLVING HEURISTICS
+
+## TRANSFERABLE STRATEGIES
+
+## FAILURE PATTERNS & RECOVERY
+
+## SELF VERIFICATION HABITS
 
 ## OTHERS"""
     
@@ -177,9 +288,6 @@ class ACE:
             'test_workers': config.get('test_workers', 20),
             'use_bulletpoint_analyzer': config.get('use_bulletpoint_analyzer', False),
             'bulletpoint_analyzer_threshold': config.get('bulletpoint_analyzer_threshold', 0.90),
-            'verifier_model': config.get('verifier_model', self.verifier_model),
-            'selector_context': config.get('selector_context', self.selector_context),
-            'show_both': config.get('show_both', self.show_both)
         }
     
     def _setup_paths(self, save_dir: str, task_name: str, mode: str) -> Tuple[str, str]:
@@ -269,7 +377,6 @@ class ACE:
                 "generator_model": self.generator.model,
                 "reflector_model": self.reflector.model,
                 "curator_model": self.curator.model,
-                "verifier_model": self.verifier.model,
                 "config": config,
             }, f, indent=2)
         
@@ -503,26 +610,17 @@ class ACE:
         token_budget = config_params['token_budget']
         use_json_mode = config_params['use_json_mode']
         no_ground_truth = config_params['no_ground_truth']
-        show_both = config_params['show_both']
-
         # Extract sample data
         question = task_dict.get("question", "")
         context = task_dict.get("context", "")
         target = task_dict.get("target", "")
 
-        # STEP 0: Thompson selects which playbook the Generator reads this task.
-        # `section` is None under global context (the default). Both playbooks
-        # learn regardless; the bandit governs *reading* only.
-        section = task_dict.get("section")
-        if show_both:
-            arm = "both"                       # ablation: inject both, Thompson off
-            shown_playbook = self._merged_playbook()
-        else:
-            arm = self.selector.sample(section)   # "abstract" | "concrete"
-            shown_playbook = self.abstract_pb if arm == "abstract" else self.concrete_pb
-        print(f"[selector] shown arm = {arm}")
+        # STEP 0: the Generator always reads BOTH playbooks (labeled two-part
+        # view). No Thompson selector — both are shown, both learn.
+        arm = "both"
+        shown_playbook = self._merged_playbook()
         # Rebind the live alias so the existing generation + reflection-round
-        # block operates on the shown store; we sync it back before curation.
+        # block operates on the shown (merged) view.
         self.playbook = shown_playbook
 
         # STEP 1: Initial generation (pre-train)
@@ -544,10 +642,6 @@ class ACE:
 
         print(f"Correct: {is_correct}")
 
-        # STEP 1.5: benchmark signal drives the Thompson posterior for the read arm.
-        if not show_both:
-            self.selector.update(section, arm, bool(is_correct))
-        
         # Log bullet usage
         log_bullet_usage(usage_log_path, epoch, step, task_dict, bullet_ids,
                        playbook=self.playbook, is_correct=is_correct)
@@ -589,12 +683,9 @@ class ACE:
                     log_dir=log_dir
                 )
                 
-                # Update bullet counts
-                if bullet_tags:
-                    self.playbook = update_bullet_counts(
-                        self.playbook, bullet_tags
-                    )
-                
+                # (Counting is centralized in _dual_learn's merged reflect; the
+                # round reflect here only drives regeneration below.)
+
                 # Regenerate with reflection
                 gen_response, bullet_ids, _ = self.generator.generate(
                     question=question,
@@ -632,29 +723,17 @@ class ACE:
                 log_dir=log_dir
             )
             
-            # Update bullet counts
-            if bullet_tags:
-                self.playbook = update_bullet_counts(
-                    self.playbook, bullet_tags
-                )
-            
+            # (Counting is centralized in _dual_learn's merged reflect.)
+
             # Log with reflection
             log_bullet_usage(usage_log_path, epoch, step, task_dict, bullet_ids,
-                           playbook=self.playbook, 
+                           playbook=self.playbook,
                            reflection_content=reflection_content,
                            is_correct=is_correct)
-        
-        # Sync the shown store back from the live alias (helpful/harmful counts).
-        # Under show_both the alias held a transient merged view → not persisted.
-        if not show_both:
-            if arm == "abstract":
-                self.abstract_pb = self.playbook
-            else:
-                self.concrete_pb = self.playbook
 
-        # STEP 2 + 2.5 + 3: dual-playbook learning (auto_distill → 2 reflector
-        # calls → verifier → 2 curators), gated by curator_frequency exactly like
-        # stock ACE. Both playbooks learn every curator step.
+        # STEP 2 + 3: dual-playbook learning (ONE merged reflector call → 2
+        # curators), gated by curator_frequency exactly like stock ACE. Both
+        # playbooks learn every curator step.
         if step % curator_frequency == 0:
             self._dual_learn(
                 question=question,
@@ -664,6 +743,7 @@ class ACE:
                 is_correct=is_correct,
                 target=target,
                 bullet_ids=bullet_ids,
+                arm=arm,
                 step=step,
                 step_id=step_id,
                 total_samples=total_samples,
@@ -697,22 +777,144 @@ class ACE:
         
         return pre_train_answer, post_train_answer, tracking_dict
 
+    # ======================================================================
+    # SINGLE-PLAYBOOK MODE (feedback_loop v2): rulebook + one tagged playbook.
+    # The dual methods above are kept but unused by this path.
+    # ======================================================================
+    def _single_view(self) -> str:
+        """Generator view: the learned PLAYBOOK (bullets filed under predefined
+        sections) first, then the IMMUTABLE RULEBOOK last (recency) as must-follow
+        ground rules. The playbook block is shown only once it holds at least one
+        learned bullet (bare section headers are hidden)."""
+        parts = []
+        pb = (self.single_pb or "").strip()
+        has_bullets = any(parse_playbook_line(l) for l in pb.splitlines())
+        if has_bullets:
+            parts.append(
+                "## LEARNED PLAYBOOK — hints from past tasks, filed under predefined "
+                "sections (specific-rule sections vs general-principle sections). "
+                "Ignore any that do not fit the current task.\n" + pb)
+        parts.append(
+            "## RULEBOOK — immutable, must-follow on EVERY task; these take "
+            "precedence over everything above.\n" + self.rulebook.strip())
+        return "\n\n".join(parts)
+
+    def _compress_playbook(self) -> None:
+        """Periodic cross-task compress pass over the single playbook: semantic
+        dedup/merge + prune net-harmful. (Concrete->abstract generalize/promote
+        is a future extension point.)"""
+        before = len(self.single_pb)
+        self.single_pb = self._maybe_dedup(self.single_pb)
+        self.single_pb, pruned = prune_harmful_bullets(self.single_pb)
+        print(f"  [compress] single playbook {before}->{len(self.single_pb)} chars"
+              + (f"; pruned {len(pruned)}" if pruned else ""))
+
+    def _single_learn(self, question, context, gen_response, final_answer,
+                      is_correct, target, bullet_ids, step, step_id,
+                      total_samples, config_params, log_dir,
+                      environment_feedback=None, score=None, penalty_weight=0.0):
+        """One-timescale single-playbook learning for one task:
+        ONE dual reflect (concrete + abstract lesson in a single pass) → ONE
+        tag-aware curator (ADD tagged / DELETE re-learned disclaimers) with
+        grader-aligned counting + net-harmful prune; compress every k tasks."""
+        token_budget = config_params['token_budget']
+        use_json_mode = config_params['use_json_mode']
+        no_ground_truth = config_params['no_ground_truth']
+
+        feedback = environment_feedback or (
+            "Predicted answer matches ground truth" if is_correct
+            else "Predicted answer does not match ground truth")
+        # The immutable RULEBOOK is appended at the END of the reflector and
+        # curator inputs too (recency = best recall) so both diagnose/curate
+        # against the ground rules — but must never treat them as editable.
+        rb_block = ("\n\n## RULEBOOK — immutable ground rules; respect them, and "
+                    "NEVER add, edit, delete, or target these ids:\n" + self.rulebook.strip())
+        used_bullets = extract_playbook_bullets(self._single_view(), bullet_ids) + rb_block
+
+        # ONE reflect — the dual reflector still "thinks concrete AND abstract",
+        # but both lessons feed ONE tagged playbook. Also tags cited bullets.
+        reflection, bullet_tags, _ = self.reflector.reflect(
+            question=question, reasoning_trace=gen_response,
+            predicted_answer=final_answer,
+            ground_truth=target if not no_ground_truth else None,
+            environment_feedback=feedback, bullets_used=used_bullets,
+            use_ground_truth=not no_ground_truth, use_json_mode=use_json_mode,
+            call_id=f"{step_id}_reflect_single", log_dir=log_dir, mode="dual")
+
+        # Grader-aligned counting: opinion tags → score-weighted (helpful_w,
+        # harmful_w); penalty blames every cited bullet. Legacy ±1 when score None.
+        if bullet_tags:
+            def _align(tags):
+                if score is None:
+                    return tags
+                r = 2.0 * max(0.0, min(1.0, score)) - 1.0
+                out = []
+                for t in tags:
+                    tag = (t.get('tag') or 'neutral')
+                    hw = max(r, 0.0) if tag == 'helpful' else 0.0
+                    # A reflector 'harmful' tag reflects the bullet's CAUSAL effect, so it
+                    # must count even on a high-scoring task. The score-weighted term
+                    # (max(-r,0)) alone zeroes out on passing tasks, letting a net-harmful
+                    # bullet accumulate 'helpful' forever (the fmt-00037 disclaimer bug).
+                    # Add a score-independent floor so an explicit harmful tag always bites.
+                    HARMFUL_FLOOR = 0.25
+                    aw = (max(-r, 0.0) + HARMFUL_FLOOR) if tag == 'harmful' else 0.0
+                    aw += penalty_weight
+                    out.append({**t, 'helpful_w': round(hw, 3), 'harmful_w': round(aw, 3)})
+                return out
+            self.single_pb = update_bullet_counts(self.single_pb, _align(bullet_tags))
+
+        # ONE tag-aware curator: ADD tagged insights / DELETE re-learned
+        # capability-disclaimer bullets; then dedup + prune net-harmful.
+        if reflection and reflection.strip():
+            stats = get_playbook_stats(self.single_pb)
+            self.single_pb, self.next_single_id, _, _ = self.curator.curate(
+                current_playbook=self.single_pb, recent_reflection=reflection,
+                question_context=context + rb_block, current_step=step,
+                total_samples=total_samples, token_budget=token_budget,
+                playbook_stats=stats, use_ground_truth=not no_ground_truth,
+                use_json_mode=use_json_mode, call_id=f"{step_id}_curate_single",
+                log_dir=log_dir, next_global_id=self.next_single_id,
+                mode="single", protected_ids=None)
+            self.single_pb = self._maybe_dedup(self.single_pb)
+            self.single_pb, pruned = prune_harmful_bullets(self.single_pb)
+            if pruned:
+                print(f"  [prune] single: removed {len(pruned)} net-harmful bullet(s): {pruned}")
+
+        # Cross-task compress every k tasks.
+        self._tasks_since_compress += 1
+        if self._tasks_since_compress >= self.compress_every_k:
+            self._compress_playbook()
+            self._tasks_since_compress = 0
+
+        self.playbook = self.single_pb  # eval-facing alias
+
     def _merged_playbook(self) -> str:
-        """Read-only concatenation of both playbooks (show_both ablation view)."""
-        return (self.concrete_pb
-                + "\n\n## === ABSTRACT PLAYBOOK (general, transferable) ===\n"
-                + self.abstract_pb)
+        """Generator-only view of BOTH playbooks. Learned bullets stay grouped
+        under their concrete/abstract banner (different mindsets); ALL seed
+        (protected) bullets are hoisted into ONE trailing STANDING RULES block —
+        seeds sit closest to the query because recency dominates instruction-
+        following. Curator views are unchanged (each gets its raw store string)."""
+        return render_for_generator([
+            ("########## CONCRETE PLAYBOOK — specific, situation-tied rules. "
+             "APPLY DIRECTLY when a rule matches the current situation. ##########",
+             self.concrete_pb, self.concrete_protected_ids),
+            ("########## ABSTRACT PLAYBOOK — general principles & mindset. "
+             "Let these GUIDE your overall approach and judgment (not literal steps). ##########",
+             self.abstract_pb, self.abstract_protected_ids),
+        ])
 
     def _save_dual_artifacts(self, save_path: str) -> None:
-        """Persist the abstract playbook + Thompson selector posteriors next to
-        the stock concrete artifacts (which are still saved as final_playbook.txt)."""
+        """Persist both final playbooks next to the stock concrete artifacts
+        (which are still saved as final_playbook.txt)."""
         try:
             with open(os.path.join(save_path, "final_concrete_playbook.txt"), "w") as f:
                 f.write(self.concrete_pb)
             with open(os.path.join(save_path, "final_abstract_playbook.txt"), "w") as f:
                 f.write(self.abstract_pb)
-            self.selector.save(os.path.join(save_path, "selector_posteriors.json"))
-            print(f"✓ Saved dual playbooks + selector posteriors to {save_path}")
+            with open(os.path.join(save_path, "abstract_window_buffer.json"), "w") as f:
+                json.dump(self._abstract_buffer, f, indent=2, ensure_ascii=False)
+            print(f"✓ Saved dual playbooks (+ abstract window buffer) to {save_path}")
         except Exception as e:
             print(f"Warning: failed to save dual artifacts: {e}")
 
@@ -736,18 +938,25 @@ class ACE:
         is_correct: bool,
         target: str,
         bullet_ids: List[str],
+        arm: str,
         step: int,
         step_id: str,
         total_samples: int,
         config_params: Dict[str, Any],
         log_dir: str,
+        environment_feedback: Optional[str] = None,
+        score: Optional[float] = None,
+        penalty_weight: float = 0.0,
     ) -> None:
-        """Dual-playbook learning for one curator step.
+        """Two-timescale dual-playbook learning for one step.
 
-        STEP 2  : auto_distill (0-LLM) + two Reflector calls (concrete/abstract).
-        STEP 2.5: Verifier (default-reject) gates each stream.
-        STEP 3  : Curator edits each playbook separately from its verified
-                  reflection; seed bullets are protected; per-playbook dedup.
+        PER TASK (concrete, fast): one CONCRETE reflect → concrete Curator; the
+            same reflect's bullet_tags drive helpful/harmful counting on both stores.
+        PER k TASKS (abstract, slow): each task is distilled (non-LLM) into an
+            episodic record buffered in a tumbling window; when the window fills,
+            ONE abstract reflect reads the k records for CROSS-TASK patterns →
+            abstract Curator, then the buffer is cleared.
+        Seed bullets are protected; per-playbook FAISS dedup after each curation.
         """
         token_budget = config_params['token_budget']
         use_json_mode = config_params['use_json_mode']
@@ -755,61 +964,62 @@ class ACE:
 
         print(f"\n--- Dual learning at step {step} ---")
 
-        feedback = ("Predicted answer matches ground truth" if is_correct
-                    else "Predicted answer does not match ground truth")
+        # Rich grader feedback (rubric score + missed criteria) when available;
+        # else a generic string. Used by both the reflect and the episodic record.
+        feedback = environment_feedback or (
+            "Predicted answer matches ground truth" if is_correct
+            else "Predicted answer does not match ground truth")
 
-        # STEP 2: non-LLM semantic memory feeds the abstract reflection.
-        semantic_mem = auto_distill(gen_response, is_correct)
+        # Generator was shown BOTH playbooks (arm="both"); pull the cited bullets
+        # from that merged view for the reflector's context.
+        shown_pb = self._merged_playbook() if arm == "both" else (
+            self.abstract_pb if arm == "abstract" else self.concrete_pb)
+        used_bullets = extract_playbook_bullets(shown_pb, bullet_ids)
 
-        concrete_bullets = extract_playbook_bullets(self.concrete_pb, bullet_ids)
-        abstract_bullets = extract_playbook_bullets(self.abstract_pb, bullet_ids)
-
-        refl_concrete, _, _ = self.reflector.reflect(
+        # ---- PER-TASK: CONCRETE reflect → concrete Curator + counting ----
+        concrete_reflection, bullet_tags, _ = self.reflector.reflect(
             question=question,
             reasoning_trace=gen_response,
             predicted_answer=final_answer,
             ground_truth=target if not no_ground_truth else None,
             environment_feedback=feedback,
-            bullets_used=concrete_bullets,
+            bullets_used=used_bullets,
             use_ground_truth=not no_ground_truth,
             use_json_mode=use_json_mode,
             call_id=f"{step_id}_reflect_concrete",
             log_dir=log_dir,
             mode="concrete",
         )
-        refl_abstract, _, _ = self.reflector.reflect(
-            question=question,
-            reasoning_trace=gen_response,
-            predicted_answer=final_answer,
-            ground_truth=target if not no_ground_truth else None,
-            environment_feedback=feedback,
-            bullets_used=abstract_bullets,
-            use_ground_truth=not no_ground_truth,
-            use_json_mode=use_json_mode,
-            call_id=f"{step_id}_reflect_abstract",
-            log_dir=log_dir,
-            mode="abstract",
-            semantic_memory=semantic_mem,
-        )
+        # Grader-aligned counting: convert the reflector's opinion tags into
+        # score-weighted (helpful_w, harmful_w) increments so the counts track the
+        # ACTUAL rubric score — credit a 'helpful' tag only when the task scored
+        # above the midpoint, blame a 'harmful' tag only when it scored below —
+        # and blame EVERY cited bullet by `penalty_weight` when the grader docked
+        # points via a triggered penalty / required-miss. Legacy ±1 when score is
+        # None (other benchmarks / callers that pass no numeric score).
+        if bullet_tags:
+            def _align(tags):
+                if score is None:
+                    return tags
+                r = 2.0 * max(0.0, min(1.0, score)) - 1.0   # [-1, 1]
+                aligned = []
+                for t in tags:
+                    tag = (t.get('tag') or 'neutral')
+                    hw = max(r, 0.0) if tag == 'helpful' else 0.0
+                    aw = max(-r, 0.0) if tag == 'harmful' else 0.0
+                    aw += penalty_weight
+                    aligned.append({**t, 'helpful_w': round(hw, 3),
+                                    'harmful_w': round(aw, 3)})
+                return aligned
+            weighted = _align(bullet_tags)
+            self.concrete_pb = update_bullet_counts(self.concrete_pb, weighted)
+            self.abstract_pb = update_bullet_counts(self.abstract_pb, weighted)
 
-        # STEP 2.5: Verifier gates both streams before any commit (EDV).
-        verified = self.verifier.run(
-            refl_concrete=refl_concrete,
-            refl_abstract=refl_abstract,
-            trajectory=gen_response,
-            abstract_pb=self.abstract_pb,
-            concrete_pb=self.concrete_pb,
-            use_json_mode=use_json_mode,
-            call_id=f"{step_id}_verify",
-            log_dir=log_dir,
-        )
-
-        # STEP 3: curate each playbook from its verified reflection.
-        if verified["concrete"]["accepted"]:
+        if concrete_reflection and concrete_reflection.strip():
             stats = get_playbook_stats(self.concrete_pb)
             self.concrete_pb, self.next_global_id, _, _ = self.curator.curate(
                 current_playbook=self.concrete_pb,
-                recent_reflection=verified["concrete"]["verified_reflection"],
+                recent_reflection=concrete_reflection,
                 question_context=context,
                 current_step=step,
                 total_samples=total_samples,
@@ -824,26 +1034,59 @@ class ACE:
                 protected_ids=self.concrete_protected_ids,
             )
             self.concrete_pb = self._maybe_dedup(self.concrete_pb)
+            # Actuator for the grader-aligned counts: evict learned bullets the
+            # score signal has proven net-harmful (seeds are protected).
+            self.concrete_pb, _pruned_c = prune_harmful_bullets(
+                self.concrete_pb, self.concrete_protected_ids)
+            if _pruned_c:
+                print(f"  [prune] concrete: removed {len(_pruned_c)} net-harmful "
+                      f"learned bullet(s): {_pruned_c}")
 
-        if verified["abstract"]["accepted"]:
-            stats = get_playbook_stats(self.abstract_pb)
-            self.abstract_pb, self.next_global_id_abstract, _, _ = self.curator.curate(
-                current_playbook=self.abstract_pb,
-                recent_reflection=verified["abstract"]["verified_reflection"],
-                question_context=context,
-                current_step=step,
-                total_samples=total_samples,
-                token_budget=token_budget,
-                playbook_stats=stats,
-                use_ground_truth=not no_ground_truth,
+        # ---- Distill this task into an episodic record; buffer it ----
+        record = auto_distill(gen_response, question, feedback, is_correct)
+        self._abstract_buffer.append(record)
+
+        # ---- PER-k: abstract curation over the tumbling window ----
+        if len(self._abstract_buffer) >= self.abstract_window_k:
+            window_text = format_window(self._abstract_buffer)
+            abstract_response = self.reflector.reflect_abstract_window(
+                window_text=window_text,
+                k=self.abstract_window_k,
                 use_json_mode=use_json_mode,
-                call_id=f"{step_id}_curate_abstract",
+                call_id=f"{step_id}_reflect_abstract_window",
                 log_dir=log_dir,
-                next_global_id=self.next_global_id_abstract,
-                mode="abstract",
-                protected_ids=self.abstract_protected_ids,
             )
-            self.abstract_pb = self._maybe_dedup(self.abstract_pb)
+            parsed = extract_json_from_text(abstract_response)
+            abstract_ins = (parsed.get("abstract_insights") if isinstance(parsed, dict)
+                            else abstract_response) or ""
+            if isinstance(abstract_ins, str) and abstract_ins.strip():
+                stats = get_playbook_stats(self.abstract_pb)
+                self.abstract_pb, self.next_global_id_abstract, _, _ = self.curator.curate(
+                    current_playbook=self.abstract_pb,
+                    recent_reflection=abstract_ins,
+                    question_context=f"cross-task window of {self.abstract_window_k} recent tasks",
+                    current_step=step,
+                    total_samples=total_samples,
+                    token_budget=token_budget,
+                    playbook_stats=stats,
+                    use_ground_truth=not no_ground_truth,
+                    use_json_mode=use_json_mode,
+                    call_id=f"{step_id}_curate_abstract",
+                    log_dir=log_dir,
+                    next_global_id=self.next_global_id_abstract,
+                    mode="abstract",
+                    protected_ids=self.abstract_protected_ids,
+                )
+                self.abstract_pb = self._maybe_dedup(self.abstract_pb)
+                self.abstract_pb, _pruned_a = prune_harmful_bullets(
+                    self.abstract_pb, self.abstract_protected_ids)
+                if _pruned_a:
+                    print(f"  [prune] abstract: removed {len(_pruned_a)} net-harmful "
+                          f"learned bullet(s): {_pruned_a}")
+            print(f"  [abstract] window full (k={self.abstract_window_k}) → curated, buffer cleared")
+            self._abstract_buffer = []   # tumbling: reset
+        else:
+            print(f"  [abstract] window {len(self._abstract_buffer)}/{self.abstract_window_k} (no abstract curation yet)")
 
         # Keep the eval-facing alias pointing at the concrete store.
         self.playbook = self.concrete_pb
@@ -1043,7 +1286,7 @@ class ACE:
         with open(best_playbook_path, "w") as f:
             f.write(self.best_playbook)
 
-        # Save abstract playbook + Thompson selector posteriors.
+        # Save both playbooks (concrete + abstract).
         self._save_dual_artifacts(save_path)
 
         print(f"\n{'='*60}")
@@ -1351,7 +1594,7 @@ class ACE:
         with open(final_playbook_path, "w") as f:
             f.write(self.playbook)
 
-        # Save abstract playbook + Thompson selector posteriors.
+        # Save both playbooks (concrete + abstract).
         self._save_dual_artifacts(save_path)
 
         print(f"\n{'='*60}")

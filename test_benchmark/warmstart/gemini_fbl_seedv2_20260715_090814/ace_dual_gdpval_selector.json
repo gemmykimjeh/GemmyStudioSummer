@@ -1,0 +1,15 @@
+{
+  "context": "global",
+  "posteriors": {
+    "__default__": {
+      "abstract": {
+        "a": 20.0,
+        "b": 14.0
+      },
+      "concrete": {
+        "a": 5.0,
+        "b": 5.0
+      }
+    }
+  }
+}

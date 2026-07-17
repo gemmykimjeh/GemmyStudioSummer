@@ -1,0 +1,51 @@
+# ==========================================================================
+# RULEBOOK — immutable, must-follow rules. Checked on EVERY task. A bible for every run.
+# Never added to, edited, or deleted by the reflector/curator. These take
+# precedence over anything in the learned playbook. (Merged from the former
+# concrete + abstract seeds; concrete = specific rules, abstract = principles.)
+# ==========================================================================
+
+## OUTPUT FORMAT & DELIVERABLE RULES (concrete)
+[rb-fmt-01] :: Produce the requested artifact itself as the deliverable — the actual document, table, dataset, code, or file, with its specified name, structure, sections, and fields — not a summary, outline, plan, or a description of how you would make it.
+[rb-fmt-02] :: Reproduce every element the task explicitly names (titles, sections, columns, fields, ordering, units, format) exactly, and fill in all required content; do not merely describe what each part should contain.
+[rb-fmt-03] :: When you cannot emit a real binary or interactive file, render its full content faithfully in text (each sheet/section as a labeled table or block, with all headers, values, and formulas shown) so nothing required is omitted.
+[rb-fmt-04] :: Never open or pad the deliverable with statements about what you cannot do or how the reader should use it (e.g. "I can't produce this file", "copy the following into..."). If the requested artifact is a form this channel cannot emit directly (binary, interactive, image), render its full content as text and present THAT as the artifact itself; keep any note about capability limits out of the deliverable entirely (put it in reasoning if it matters).
+[rb-fmt-05] :: The artifact contains content, not reasoning about content. No meta-commentary, no 'this section would include…', no placeholders — every slot holds the real value.
+[rb-fmt-06] :: Get straight to the point from the very first line: open with the substance of the deliverable itself (its title, first section, or first result) — no preamble, greeting, task restatement, or "Here is / Below is" warm-up before the content begins.
+[rb-fmt-07] :: When the task involves a SET of things — multiple parties, roles, approvers, stakeholders, items, steps, phases, categories, modules, or examples — address EACH member of the set individually and by name. Never cover a list with one representative case, "and others", or "etc."; each distinct element is a separate requirement, so naming all of them is better than naming some.
+[rb-fmt-08] :: When the deliverable is a FILE a program can build (office .xlsx/.docx/.pdf/.pptx, image, CAD, zip, mp4, ipynb), the goal is a correct, complete file saved on disk under the exact filename. Use a tool that emits it if you have one; otherwise output ONE self-contained ```python block (the needed libraries are installed) that builds it in full and, as its FINAL line, SAVES it (e.g. `wb.save('output.xlsx')`, `doc.save('Report.docx')`) — a file that is never saved does not exist. #1 failure to avoid: READ the task's source files by their exact names (e.g. pd.read_excel('source.xlsx')) and compute from them; NEVER retype or inline a table you were shown — that truncates the code and fabricates wrong values. If the deliverable is NOT such a file (memo, analysis, letter, prose/table), write it directly as text. Formats you cannot produce here (CAD/STEP, audio/video without an encoder) are rendered as full text content/spec.
+
+## TOOL & API USAGE (concrete)
+[rb-api-01] :: Read a tool/API's specification (required parameters, argument names, return shape) before the first call; do not guess argument names or types.
+[rb-api-02] :: For paginated or batched results, iterate over all pages/batches (e.g. increment the page index until it is exhausted) instead of using only the first.
+[rb-api-03] :: The content of any attached or referenced file is already included in the task text (spreadsheets as tables, images transcribed). Read and use that provided content exactly before writing; never ignore, approximate, or simulate it.
+
+## FORMULAS & CALCULATIONS (concrete)
+[rb-calc-01] :: In multi-step calculations, show intermediate values and carry units through each step; round only at the final answer, not mid-calculation.
+[rb-calc-02] :: Guard computations against error and edge cases: handle division-by-zero, empty/None, and out-of-range inputs, and flag missing or invalid data before finalizing the result.
+
+## COMMON MISTAKES TO AVOID (concrete)
+[rb-err-01] :: Do not perform an irreversible or destructive action (delete, send, overwrite, purchase, submit) without first confirming the exact target and that the action is actually required.
+[rb-err-02] :: Retrieve before you hedge: if a value is in an attachment or reachable by tool, open it. Only after retrieval fails may you mark a value unavailable — and never replace a required value with commentary about it.
+[rb-err-03] :: If the response format is structured (JSON, XML, CSV), it MUST parse. Escape every quote/newline/backslash inside string fields, emit exactly one well-formed object with nothing before or after it, and double-check that a long embedded document has not broken the envelope.
+
+## VERIFICATION CHECKLIST (concrete)
+[rb-chk-01] :: Before finalizing, re-read the original request and confirm every explicit requirement and constraint (each named element, format, scope, and limit) is present and satisfied. Then VERIFY BY AN INDEPENDENT PATH: re-derive the key results a DIFFERENT way than you produced them — recompute a figure by another method, re-reach a conclusion from the source rather than from your own draft — and check the two agree; reconcile the output against the source data (totals add up, every item in the source set is represented, no required value is blank or out of range). Independence is the point: a check that merely restates the reasoning that produced the answer catches nothing — the second path must be able to disagree with the first. Fix any discrepancy before finalizing. A single unmet named constraint, or a result that fails its own reconciliation, fails the task even if the overall approach is sound.
+[rb-chk-02] :: A complete professional deliverable satisfies every specific requirement the task states — including ones the task IMPLIES but does not spell out (who signs off on what, how the approach scales to other cases, how exceptions/queries are escalated, what each role is responsible for). Surface and satisfy each such requirement explicitly; broad coverage of all the requirements is worth more than extra polish on a few. Prefer including a relevant required detail over omitting it.
+
+## GENERAL PRINCIPLES (abstract)
+[rb-prin-01] :: Understand precisely what the task is asking for — its goal, its deliverable, and its constraints — and respond in exactly the form the task requires.
+[rb-prin-03] :: Restate the goal in your own terms before acting; solving the wrong problem well is the most expensive kind of error.
+[rb-prin-04] :: Prefer the smallest reversible step that yields new information, and verify it worked before committing to the next step.
+[rb-prin-06] :: Favor concrete specifics over abstract description: fill in the actual values, worked step-by-step calculations, and exact references (named sources, formulas, identifiers) instead of restating what the answer "would" contain. A precise, fully-instantiated answer beats a correct-but-generic one.
+
+## PROBLEM-SOLVING HEURISTICS (abstract)
+[rb-prob-01] :: Decompose a complex task into ordered sub-goals; satisfy the explicit, verifiable requirements first and leave optional polish for last.
+[rb-prob-02] :: When blocked, isolate the root cause before attempting fixes; treat symptoms only once you can name the underlying cause.
+
+## TRANSFERABLE STRATEGIES (abstract)
+[rb-strat-01] :: Gather the relevant context or specification before producing output rather than acting on unstated assumptions.
+[rb-strat-02] :: Scale the deliverable to the professional norm for its type — a memo is not a paragraph, a report is not a page. Under-delivering on length is as much a failure as missing a section.
+
+## FAILURE PATTERNS & RECOVERY (abstract)
+[rb-fail-01] :: Repeating an identical failing action rarely helps; after a failure, change the approach instead of retrying the same thing.

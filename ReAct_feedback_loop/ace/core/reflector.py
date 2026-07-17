@@ -9,6 +9,8 @@ from ..prompts.reflector import (
     REFLECTOR_PROMPT, REFLECTOR_PROMPT_NO_GT,
     CONCRETE_REFLECTOR_PROMPT, CONCRETE_REFLECTOR_PROMPT_NO_GT,
     ABSTRACT_REFLECTOR_PROMPT, ABSTRACT_REFLECTOR_PROMPT_NO_GT,
+    DUAL_REFLECTOR_PROMPT, DUAL_REFLECTOR_PROMPT_NO_GT,
+    ABSTRACT_AGGREGATE_PROMPT,
 )
 from ..core.auto_distill import format_semantic_memory
 from llm import timed_llm_call
@@ -73,11 +75,23 @@ class Reflector:
         Returns:
             Tuple of (reflection_content, bullet_tags, call_info)
         """
-        if mode not in ("concrete", "abstract"):
-            raise ValueError(f"mode must be 'concrete' or 'abstract', got {mode!r}")
+        if mode not in ("concrete", "abstract", "dual"):
+            raise ValueError(f"mode must be 'concrete', 'abstract', or 'dual', got {mode!r}")
 
+        # Dual mode (v2): one call → both a concrete and an abstract insight.
+        if mode == "dual":
+            if use_ground_truth and ground_truth:
+                prompt = DUAL_REFLECTOR_PROMPT.format(
+                    question, reasoning_trace, predicted_answer,
+                    ground_truth, environment_feedback, bullets_used
+                )
+            else:
+                prompt = DUAL_REFLECTOR_PROMPT_NO_GT.format(
+                    question, reasoning_trace, predicted_answer,
+                    environment_feedback, bullets_used
+                )
         # Abstract mode injects the (non-LLM) semantic memory as an extra arg.
-        if mode == "abstract":
+        elif mode == "abstract":
             sem_text = (semantic_memory if isinstance(semantic_memory, str)
                         else format_semantic_memory(semantic_memory))
             if use_ground_truth and ground_truth:
@@ -116,9 +130,35 @@ class Reflector:
         
         # Extract bullet tags
         bullet_tags = self._extract_bullet_tags(response, use_json_mode)
-        
+
         return response, bullet_tags, call_info
-    
+
+    def reflect_abstract_window(
+        self,
+        window_text: str,
+        k: int,
+        use_json_mode: bool = False,
+        call_id: str = "reflect_abstract_window",
+        log_dir: Optional[str] = None,
+    ) -> str:
+        """Abstract, CROSS-TASK reflection over a tumbling window of k distilled
+        episodes (see auto_distill.format_window). Returns the raw response; the
+        caller parses `abstract_insights` and hands them to the abstract Curator.
+        """
+        prompt = ABSTRACT_AGGREGATE_PROMPT.format(k, window_text)
+        response, _ = timed_llm_call(
+            self.api_client,
+            self.api_provider,
+            self.model,
+            prompt,
+            role="reflector",
+            call_id=call_id,
+            max_tokens=self.max_tokens,
+            log_dir=log_dir,
+            use_json_mode=use_json_mode,
+        )
+        return response
+
     def _extract_bullet_tags(
         self,
         response: str,

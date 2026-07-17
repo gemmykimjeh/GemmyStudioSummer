@@ -1,0 +1,49 @@
+## GENERAL PRINCIPLES
+[prin-00001] helpful=37 harmful=0 :: Understand precisely what the task is asking for — its goal, its deliverable, and its constraints — and respond in exactly the form the task requires.
+[prin-00002] helpful=37 harmful=0 :: Deliver the thing itself, not a description of the thing: when a work product is requested, produce the product, not a report about how you would produce it.
+[prin-00003] helpful=1 harmful=0 :: Restate the goal in your own terms before acting; solving the wrong problem well is the most expensive kind of error.
+[prin-00004] helpful=1 harmful=0 :: Prefer the smallest reversible step that yields new information, and verify it worked before committing to the next step.
+[prin-00005] helpful=5 harmful=0 :: Separate your internal reasoning (scratchpad) from the final artifact; the delivered artifact should be clean, direct, and self-contained.
+
+[prin-00016] helpful=8 harmful=0 :: When utilizing external data, frameworks, or methodologies, explicitly document the source, publication year, and classification criteria within the deliverable to ensure transparency and verifiability.
+[prin-00026] helpful=4 harmful=0 :: Adopt a 'Constraint-First' hierarchy: treat file formats, naming conventions, and structural requirements as the primary constraints that must be satisfied before any content generation begins. If a structural requirement is violated, the task is failed regardless of content quality.
+[prin-00033] helpful=2 harmful=0 :: Establish structural and format integrity as the 'Day Zero' task: before any content generation, validate file types, headers, and layout constraints to ensure the foundation is compliant.
+## PROBLEM-SOLVING HEURISTICS
+[prob-00006] helpful=3 harmful=0 :: Decompose a complex task into ordered sub-goals; satisfy the explicit, verifiable requirements first and leave optional polish for last.
+[prob-00007] helpful=1 harmful=0 :: When blocked, isolate the root cause before attempting fixes; treat symptoms only once you can name the underlying cause.
+
+[ph-00012] helpful=7 harmful=0 :: For tasks with multi-part constraints, explicitly map each requirement to a checklist item before starting; treat the absence of a required structural component as a critical failure.
+[ph-00014] helpful=11 harmful=0 :: Adopt a 'constraint-first' workflow: before drafting, explicitly map every rubric requirement to a specific section of the deliverable to ensure full coverage.
+[ph-00017] helpful=0 harmful=0 :: Before finalizing, perform a 'structural alignment' by creating a checklist that maps every mandatory rubric element (citations, metrics, taxonomies) to a specific location in your draft to ensure zero omissions.
+[ph-00019] helpful=0 harmful=0 :: Identify 'negative constraints' (e.g., forbidden formats, length caps, excluded topics) during the initial planning phase; treat these as high-priority filters to prevent disqualification before drafting begins.
+[ph-00022] helpful=5 harmful=0 :: Implement 'structural scaffolding' at the start of the drafting process: insert all required headers, placeholders for visual elements, and mandatory data fields before generating content to ensure the final output adheres to the rubric's structural constraints.
+[ph-00024] helpful=0 harmful=0 :: Prioritize format and structural requirements: verify file extensions, archive structures, and mandatory file formats as the very first step of the generation process to avoid trivial format-based failures.
+[ph-00025] helpful=4 harmful=0 :: For multi-part tasks, generate a 'structural blueprint' before drafting: decompose the prompt into a checklist of all required components, file formats, and sections to serve as a roadmap for the entire generation process.
+[ph-00034] helpful=1 harmful=0 :: For deliverables requiring visual assets or specific section placements, perform a 'Placement Audit' by cross-referencing the location of every required element against the rubric before finalizing the document structure.
+[ph-00035] helpful=1 harmful=0 :: Deconstruct complex, multi-part instructions into a 'Logic Tier' hierarchy: map the prompt's requirements into mandatory data fields, conditional logic, and formatting constraints before drafting to ensure no sub-requirement is lost in the complexity.
+[ph-00039] helpful=0 harmful=0 :: Implement 'Requirement-to-Content Mapping' during the drafting phase: explicitly annotate your scratchpad or draft with the specific prompt instruction that justifies each section or data point, ensuring that every mandatory element has a clear, traceable origin in the instructions.
+## TRANSFERABLE STRATEGIES
+[strat-00008] helpful=6 harmful=0 :: Gather the relevant context or specification before producing output rather than acting on unstated assumptions.
+[strat-00009] helpful=42 harmful=0 :: Scale the deliverable to the professional norm for its type — a memo is not a paragraph, a report is not a page. Under-delivering on length is as much a failure as missing a section.
+
+## FAILURE PATTERNS & RECOVERY
+[fail-00010] helpful=1 harmful=0 :: Repeating an identical failing action rarely helps; after a failure, change the approach instead of retrying the same thing.
+
+## SELF VERIFICATION HABITS
+[verif-00011] helpful=5 harmful=0 :: Before declaring the task done, check the result against every explicit requirement and against one independent sanity check; an unmet named constraint fails the task even if the overall approach is sound.
+
+[verif-00013] helpful=6 harmful=0 :: Perform a final 'structural audit': verify that all embedded artifacts, file formats, and section headers strictly match the rubric requirements before final submission.
+[verif-00015] helpful=1 harmful=0 :: For tasks requiring specific file formats or external references, execute a final 'technical audit' to verify file extensions, internal structure, and the presence of all mandatory citations against a pre-drafted checklist.
+[verif-00018] helpful=1 harmful=0 :: Perform a 'compliance mapping' before finalization: explicitly cross-reference every secondary constraint (e.g., opt-out text, specific naming conventions, negative constraints) against the final output to ensure no hidden requirements were overlooked.
+[verif-00020] helpful=2 harmful=0 :: Prioritize structural and format verification as the absolute first step of the finalization process; validate all naming conventions, file formats, structural metadata, file integrity, and layout constraints against the rubric before performing content-level reviews.
+[verif-00021] helpful=3 harmful=0 :: Perform a 'visual and linkage audit' as the final step: verify that all specific formatting instructions (e.g., highlighting, font styles, section ordering) are applied and that all mandatory input fields are correctly linked via formulas or references as specified in the prompt.
+[verif-00023] helpful=5 harmful=0 :: Perform a final 'rubric-to-deliverable' audit: explicitly verify that every mandatory data point, column, and section defined in the rubric is present in the final output before submission.
+[verif-00027] helpful=4 harmful=0 :: Adopt a 'Granular Audit' approach: instead of reviewing the deliverable as a whole, perform a line-by-line verification where every sub-requirement in the rubric is treated as an independent checklist item to be confirmed individually.
+[verif-00028] helpful=3 harmful=0 :: Perform a 'Final Constraint Reconciliation': before submission, conduct a final pass where every individual constraint (including file format, naming, and granular content requirements) is checked against the final deliverable to ensure no requirements were dropped during the drafting process.
+[verif-00029] helpful=1 harmful=0 :: Perform a 'Requirement-to-Content Mapping' before submission: explicitly cross-reference each rubric requirement against the corresponding element in the final deliverable to ensure that all mandatory citations, data points, and structural components are present and correctly placed.
+[verif-00031] helpful=1 harmful=0 :: Conduct a 'Granular Rubric Mapping': systematically check every individual rubric criterion against the draft to ensure no specific data points or procedural steps were omitted during the drafting process.
+[verif-00032] helpful=1 harmful=0 :: For multi-part deliverables, perform a 'Cohesion Audit': explicitly verify that cross-references, indexing, and data flow between distinct sections or files are accurate and function as a unified system.
+[verif-00036] helpful=2 harmful=0 :: Perform a 'Component Completeness Check': explicitly verify that every requested data breakdown and summary section is present as a distinct, identifiable component in the final output, cross-referencing against the original prompt's list of required deliverables.
+[verif-00037] helpful=1 harmful=0 :: Adopt a 'Test-Case Verification' mindset: treat every individual rubric criterion as a distinct, binary test case. Before final submission, explicitly validate each requirement as 'Passed' or 'Failed' to ensure no structural or metadata component is omitted.
+[verif-00038] helpful=1 harmful=0 :: Execute a 'Compliance-First' final review: before submission, create a binary checklist of every explicit constraint (file type, naming, mandatory headers, data points) and verify the final output against this list to ensure zero structural mismatches.
+## OTHERS

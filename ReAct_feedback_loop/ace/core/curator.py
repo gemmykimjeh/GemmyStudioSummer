@@ -10,6 +10,7 @@ from ..prompts.curator import (
     CURATOR_PROMPT, CURATOR_PROMPT_NO_GT,
     CONCRETE_CURATOR_PROMPT, CONCRETE_CURATOR_PROMPT_NO_GT,
     ABSTRACT_CURATOR_PROMPT, ABSTRACT_CURATOR_PROMPT_NO_GT,
+    SINGLE_CURATOR_PROMPT, SINGLE_CURATOR_PROMPT_NO_GT,
 )
 from playbook_utils import extract_json_from_text, apply_curator_operations
 from logger import log_curator_operation_diff, log_curator_failure
@@ -73,14 +74,16 @@ class Curator:
         Returns:
             Tuple of (updated_playbook, next_global_id, operations, call_info)
         """
-        if mode not in ("concrete", "abstract"):
-            raise ValueError(f"mode must be 'concrete' or 'abstract', got {mode!r}")
+        if mode not in ("concrete", "abstract", "single"):
+            raise ValueError(f"mode must be 'concrete', 'abstract', or 'single', got {mode!r}")
 
         # Format playbook stats as JSON string
         stats_str = json.dumps(playbook_stats, indent=2)
 
-        # Select the mode-specific prompt (concrete vs abstract playbook).
-        if mode == "abstract":
+        # Select the mode-specific prompt (single tagged playbook / concrete / abstract).
+        if mode == "single":
+            prompt_template = SINGLE_CURATOR_PROMPT if use_ground_truth else SINGLE_CURATOR_PROMPT_NO_GT
+        elif mode == "abstract":
             prompt_template = ABSTRACT_CURATOR_PROMPT if use_ground_truth else ABSTRACT_CURATOR_PROMPT_NO_GT
         else:
             prompt_template = CONCRETE_CURATOR_PROMPT if use_ground_truth else CONCRETE_CURATOR_PROMPT_NO_GT
