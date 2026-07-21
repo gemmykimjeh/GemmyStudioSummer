@@ -1,0 +1,13 @@
+{
+  "modes": {
+    "FM1_deliverable_missing": 95,
+    "FM5_quantitative_error": 517,
+    "FM2_format_noncompliance": 277,
+    "FM6_unsupported_claims": 174,
+    "FM3_coverage_gap": 556,
+    "FM4_reference_ignored": 24
+  },
+  "activated": [],
+  "baseline": 0.620368491724448,
+  "n_scored": 100
+}

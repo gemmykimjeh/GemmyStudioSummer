@@ -19,6 +19,7 @@ folder can be dropped in without touching ReAct/ or ReAct_feedback_loop/.
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import threading
@@ -82,25 +83,29 @@ Keep "content" free of task-specific names/numbers. If nothing generalizes, retu
 """
 
 
-def _fmt_playbook(bullets: list[dict], section: str | None, mode: str) -> str:
-    """Render the playbook subset the Generator sees.
+def _select_bullets(bullets: list[dict], section: str | None, mode: str) -> list[dict]:
+    """The playbook subset the Generator sees, ranked by helpful-harmful.
 
-    a0: nothing. a1: only __global__ guardrails. a2: __global__ (all learned+guardrail).
-    a3: __global__ + the routed section, ranked by helpful-harmful.
+    a0: nothing. a1: only __global__ guardrails. a2: __global__ (all learned+seed).
+    a3: __global__ + the routed section. Ranking is real now that harmful is
+    tracked (Change 2), so the top bullets are the ones that actually help.
     """
     if mode == "a0":
-        return ""
-    if mode == "a1":
-        keep = [b for b in bullets if b["section"] == "__global__"]
-    elif mode == "a2":
+        return []
+    if mode in ("a1", "a2"):
         keep = [b for b in bullets if b["section"] == "__global__"]
     else:  # a3
         keep = [b for b in bullets if b["section"] in ("__global__", section)]
-    if not keep:
+    keep.sort(key=lambda b: (b["helpful"] - b["harmful"], b.get("usage_count", 0)),
+              reverse=True)
+    return keep[:40]
+
+
+def _fmt_playbook(shown: list[dict]) -> str:
+    if not shown:
         return ""
-    keep.sort(key=lambda b: (b["helpful"] - b["harmful"]), reverse=True)
     lines = ["# PLAYBOOK — reusable habits from earlier tasks (apply where relevant):"]
-    for b in keep[:40]:
+    for b in shown:
         lines.append(f"- {b['content']}")
     return "\n".join(lines)
 
@@ -114,10 +119,12 @@ class RGRGDPvalAgent(Agent):
         loop_mode: str = "a3",
         grader_model: str = "gemini-3.1-flash-lite",
         reflect_threshold: float = 0.7,
+        reflect_floor: float = 0.2,
         success_threshold: float = 0.5,
         playbook_out: str = "rgr_playbook_gdpval.json",
         counters_out: str = "rgr_counters_gdpval.json",
-        dedup_threshold: float = 0.85,
+        dedup_threshold: float = 0.86,
+        global_cap: int = 15,
         **_ignore,
     ) -> None:
         self.model = model
@@ -126,11 +133,17 @@ class RGRGDPvalAgent(Agent):
         assert self.loop_mode in ("a0", "a1", "a2", "a3"), self.loop_mode
         self.grader_model = grader_model
         self.reflect_threshold = reflect_threshold
+        # Change 3(a): don't reflect on near-0 tool-ceiling failures — only learn
+        # from the "productive middle" (reflect_floor < score < reflect_threshold).
+        self.reflect_floor = float(os.environ.get("RGR_REFLECT_FLOOR", reflect_floor))
         self.success_threshold = success_threshold
         # per-arm output filenames so arms don't clobber each other
         self.playbook_out = playbook_out.replace(".json", f"_{self.loop_mode}.json")
         self.counters_out = counters_out.replace(".json", f"_{self.loop_mode}.json")
-        self.dedup_threshold = dedup_threshold
+        # Change 4: dedup is now embedding cosine similarity (Jaccard fallback).
+        self.dedup_threshold = float(os.environ.get("RGR_DEDUP_THRESHOLD", dedup_threshold))
+        # Change 3(b): hard cap on __global__ so the always-shown pile can't dilute.
+        self.global_cap = int(os.environ.get("RGR_GLOBAL_CAP", global_cap))
 
         self._ready = False
         self._lock = threading.Lock()
@@ -140,6 +153,8 @@ class RGRGDPvalAgent(Agent):
         self.counters: Counters | None = None
         self._next_id = 1
         self._step = 0
+        self._emb_cache: dict[int, list[float]] = {}   # bullet id -> embedding (in-memory)
+        self._last_shown: list[int] = []               # bullet ids shown in the last prompt
 
     # -- setup -------------------------------------------------------------
     def _ensure(self) -> None:
@@ -168,9 +183,36 @@ class RGRGDPvalAgent(Agent):
                 self._next_id = max((b["id"] for b in self.bullets), default=0) + 1
             except Exception:  # noqa: BLE001
                 self.bullets = []
+
+        # Change 1: seed ALL 6 guardrails at startup (always-on), before task 1.
+        # Replaces the "counter must hit 2" activation gate that rarely fired.
+        # Seeds are origin="seed" and are protected from retirement/eviction.
+        n_seeded = 0
+        if self.loop_mode != "a0":
+            n_seeded = self._seed_guardrails()
+
         self._ready = True
         print(f"[rgr] mode={self.loop_mode} model={self.model} "
-              f"bullets={len(self.bullets)}")
+              f"bullets={len(self.bullets)} (seeded {n_seeded} guardrails)")
+
+    def _seed_guardrails(self) -> int:
+        """Load every pre-written guardrail into memory once, as origin='seed'."""
+        present = {b["evidence"][0] for b in self.bullets
+                   if b.get("origin") in ("seed", "guardrail") and b.get("evidence")}
+        n = 0
+        for mode, spec in FAILURE_MODES.items():
+            if mode in present:
+                continue
+            content = spec["guardrail"]
+            self.bullets.append({
+                "id": self._next_id, "section": spec["section"],
+                "content": content.strip(), "kind": "pitfall", "origin": "seed",
+                "evidence": [mode], "helpful": 0, "harmful": 0, "usage_count": 0,
+                "_norm": re.sub(r"\s+", " ", content.strip().lower()),
+            })
+            self._next_id += 1
+            n += 1
+        return n
 
     # -- Agent API ---------------------------------------------------------
     def run(self, task: Task, env: Env) -> Trajectory:
@@ -196,7 +238,9 @@ class RGRGDPvalAgent(Agent):
     def _generate(self, task: Task, env: Env, traj: Trajectory, section: str) -> str:
         obs = env.observation()
         traj.add(Step(type="user_message", text=obs))
-        playbook = _fmt_playbook(self.bullets, section, self.loop_mode)
+        shown = _select_bullets(self.bullets, section, self.loop_mode)
+        self._last_shown = [b["id"] for b in shown]   # for usage/harmful tracking
+        playbook = _fmt_playbook(shown)
         sys_prompt = _INSTRUCTIONS + (("\n\n" + playbook) if playbook else "")
         try:
             resp = self._gemini.chat.completions.create(
@@ -243,26 +287,30 @@ class RGRGDPvalAgent(Agent):
         missed = [c for c in rubric
                   if not grades.get(str(c.get("rubric_item_id")), False)]
 
-        # M4: non-LLM failure-mode tagging
+        # Change 2: credit/blame the bullets that were in THIS task's prompt,
+        # measured against a running baseline of scores seen so far. A task that
+        # scored below baseline blames its shown bullets (harmful++); at/above
+        # baseline reinforces them (helpful++). usage_count tracks exposure.
+        worse = self._update_usage_and_counts(rs["score"])
+
+        # M4: non-LLM failure-mode tagging (kept purely as an FM-coverage
+        # diagnostic; guardrails are now seeded at startup, not activated here).
         mode_hits, unmatched = tag_failures(missed)
         self.counters.bump(mode_hits)
-
-        # M5: activate pre-written guardrails when a mode crosses threshold
-        n_activated = 0
-        for mode in self.counters.newly_activated():
-            spec = FAILURE_MODES[mode]
-            self._add_bullet(content=spec["guardrail"], section=spec["section"],
-                             kind="pitfall", origin="guardrail",
-                             evidence=[mode])
-            self.counters.mark_activated(mode)
-            n_activated += 1
         self.counters.save()
 
-        # M6: gated LLM Reflector (a2/a3 only; skip in a1)
+        # M6: gated LLM Reflector (a2/a3 only). Change 3(a): the gate is now a
+        # WINDOW — reflect only in the productive middle, skipping near-0
+        # tool-ceiling failures (nothing to learn) and near-pass tasks alike.
         n_insights = 0
-        gate = (rs["score"] < self.reflect_threshold) or (not rs["required_ok"])
+        gate = self.reflect_floor < rs["score"] < self.reflect_threshold
         if self.loop_mode in ("a2", "a3") and gate and missed:
             n_insights = self._reflect_and_curate(task, deliverable, section, missed)
+
+        # Change 2: retire learned bullets that have proven net-harmful.
+        n_retired = self._retire_bullets()
+        # Change 3(b): hard-cap __global__, evicting the lowest-ranked learned.
+        n_evicted = self._enforce_global_cap()
 
         self._save_playbook()
         self._step += 1
@@ -270,8 +318,10 @@ class RGRGDPvalAgent(Agent):
         print(f"[rgr] task {self._step} mode={self.loop_mode} "
               f"score={rs['score']:.2f} req_ok={rs['required_ok']} "
               f"missed={len(missed)} fm_hits={sum(mode_hits.values())} "
-              f"fm_other={unmatched_rate:.0%} activated={n_activated} "
-              f"insights={n_insights} bullets={len(self.bullets)}")
+              f"fm_other={unmatched_rate:.0%} insights={n_insights} "
+              f"{'WORSE ' if worse else ''}retired={n_retired} evicted={n_evicted} "
+              f"bullets={len(self.bullets)} "
+              f"baseline={self.counters.data.get('baseline', 0.0):.2f}")
 
     # -- M6 reflect + M7 curate -------------------------------------------
     def _reflect_and_curate(self, task: Task, deliverable: str,
@@ -318,23 +368,128 @@ class RGRGDPvalAgent(Agent):
         except Exception:  # noqa: BLE001
             return []
 
-    # -- M7 store: dedup + counters ---------------------------------------
+    # -- M7 store: semantic dedup + counters ------------------------------
     def _add_bullet(self, content: str, section: str, kind: str,
                     origin: str, evidence: list) -> None:
         norm = re.sub(r"\s+", " ", content.strip().lower())
-        # cheap deterministic dedup (token Jaccard) — no embeddings needed at v1 scale
+        # Change 4: dedup by embedding cosine similarity (Jaccard fallback when
+        # the embedder is unavailable). This catches paraphrases token-Jaccard
+        # misses, so reinforcement lands on the real survivor and the ranking
+        # (helpful-harmful) reflects distinct advice.
+        new_emb = self._embed(content)
         for b in self.bullets:
             if b["section"] != section:
                 continue
-            if _jaccard(norm, b["_norm"]) >= self.dedup_threshold:
-                b["helpful"] += 1        # reinforce survivor instead of duplicating
+            sim = None
+            if new_emb is not None:
+                b_emb = self._embed_of(b)
+                if b_emb is not None:
+                    sim = _cosine(new_emb, b_emb)
+            if sim is None:                       # no embeddings -> heuristic
+                sim = _jaccard(norm, b["_norm"])
+            if sim >= self.dedup_threshold:
+                b["helpful"] += 1                 # reinforce survivor, don't duplicate
                 return
+        bid = self._next_id
         self.bullets.append({
-            "id": self._next_id, "section": section, "content": content.strip(),
+            "id": bid, "section": section, "content": content.strip(),
             "kind": kind, "origin": origin, "evidence": evidence,
             "helpful": 0, "harmful": 0, "usage_count": 0, "_norm": norm,
         })
+        if new_emb is not None:
+            self._emb_cache[bid] = new_emb
         self._next_id += 1
+
+    # -- Change 2: usage / helpful / harmful + running baseline -----------
+    def _update_usage_and_counts(self, score: float) -> bool:
+        """Attribute this task's outcome to the bullets it was shown.
+
+        Compares `score` to the running-mean baseline of PRIOR tasks; a
+        below-baseline task blames its shown bullets (harmful++), otherwise it
+        reinforces them (helpful++). Then folds `score` into the baseline.
+        Returns whether this task scored below baseline.
+        """
+        shown = set(self._last_shown)
+        data = self.counters.data
+        n = int(data.get("n_scored", 0))
+        baseline = data.get("baseline")  # None until the first task is scored
+        worse = baseline is not None and score < float(baseline)
+        for b in self.bullets:
+            if b["id"] in shown:
+                b["usage_count"] = b.get("usage_count", 0) + 1
+                if baseline is None:
+                    continue                     # no reference yet -> usage only
+                if worse:
+                    b["harmful"] += 1
+                else:
+                    b["helpful"] += 1
+        mean = float(baseline) if baseline is not None else 0.0
+        data["baseline"] = (mean * n + score) / (n + 1)
+        data["n_scored"] = n + 1
+        return worse
+
+    # -- Change 2: retirement --------------------------------------------
+    def _retire_bullets(self) -> int:
+        """Drop learned bullets that have proven net-harmful with enough usage.
+
+        Seeds and guardrails are protected — only origin=='learned' can retire.
+        """
+        keep, retired = [], 0
+        for b in self.bullets:
+            if (b.get("origin") == "learned"
+                    and b.get("usage_count", 0) >= 4
+                    and b.get("harmful", 0) > b.get("helpful", 0)):
+                self._emb_cache.pop(b["id"], None)
+                retired += 1
+                print(f"[rgr]   retired learned bullet #{b['id']} "
+                      f"(usage={b['usage_count']} harmful={b['harmful']} "
+                      f"helpful={b['helpful']})")
+                continue
+            keep.append(b)
+        self.bullets = keep
+        return retired
+
+    # -- Change 3(b): hard cap on __global__ ------------------------------
+    def _enforce_global_cap(self) -> int:
+        """Keep __global__ at <= global_cap, evicting the lowest-ranked learned.
+
+        Seeds/guardrails are never evicted; only learned bullets are trimmed, so
+        the always-on guardrails survive and only weak learned advice is dropped.
+        """
+        g = [b for b in self.bullets if b["section"] == "__global__"]
+        if len(g) <= self.global_cap:
+            return 0
+        protected = [b for b in g if b.get("origin") != "learned"]
+        learned = [b for b in g if b.get("origin") == "learned"]
+        slots = max(0, self.global_cap - len(protected))
+        learned.sort(key=lambda b: (b["helpful"] - b["harmful"], b.get("usage_count", 0)),
+                     reverse=True)
+        keep_ids = {b["id"] for b in protected} | {b["id"] for b in learned[:slots]}
+        evicted = [b for b in learned[slots:]]
+        for b in evicted:
+            self._emb_cache.pop(b["id"], None)
+        if evicted:
+            self.bullets = [b for b in self.bullets
+                            if b["section"] != "__global__" or b["id"] in keep_ids]
+        return len(evicted)
+
+    # -- embeddings -------------------------------------------------------
+    def _embed(self, text: str) -> list[float] | None:
+        if self._gemini is None:
+            return None
+        try:
+            return self._gemini.embed(text)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[rgr] embed failed: {exc}")
+            return None
+
+    def _embed_of(self, bullet: dict) -> list[float] | None:
+        emb = self._emb_cache.get(bullet["id"])
+        if emb is None:
+            emb = self._embed(bullet["content"])
+            if emb is not None:
+                self._emb_cache[bullet["id"]] = emb
+        return emb
 
     def _save_playbook(self) -> None:
         if self.loop_mode == "a0":
@@ -351,3 +506,12 @@ def _jaccard(a: str, b: str) -> float:
     if not sa or not sb:
         return 0.0
     return len(sa & sb) / len(sa | sb)
+
+
+def _cosine(a: list[float], b: list[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0

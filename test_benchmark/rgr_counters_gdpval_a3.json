@@ -1,0 +1,18 @@
+{
+  "modes": {
+    "FM1_deliverable_missing": 22,
+    "FM5_quantitative_error": 57,
+    "FM6_unsupported_claims": 44,
+    "FM2_format_noncompliance": 73,
+    "FM3_coverage_gap": 75,
+    "FM4_reference_ignored": 4
+  },
+  "activated": [
+    "FM1_deliverable_missing",
+    "FM5_quantitative_error",
+    "FM6_unsupported_claims",
+    "FM2_format_noncompliance",
+    "FM3_coverage_gap",
+    "FM4_reference_ignored"
+  ]
+}

@@ -6,9 +6,10 @@
 #   ARM=fbl      LIMIT=20 bash scripts/run_gdpval_gemini.sh
 #
 # Prereqs:
-#   - Gemini proxy running on :4000  (for the grader):
-#       PYTHONUTF8=1 GEMINI_API_KEY=... .venv/Scripts/litellm.exe \
-#         --config configs/litellm_gemini.yaml --port 4000
+#   - Gemini proxy running on :4000  (serves the grader AND the file-bridge
+#     vision/audio transcription). Start it in its own terminal:
+#       bash scripts/start_proxy.sh
+#     (loads configs/gemini_keys.env; falls back to $GEMINI_API_KEY for one key.)
 #   - GEMINI_API_KEY in the environment or .env (free key from AI Studio).
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # -> test_benchmark
@@ -28,6 +29,7 @@ echo ">>> ARM=$ARM  ACE_PATH=$ACE_PATH  MODEL=$MODEL  LIMIT=$LIMIT"
 ACE_API_PROVIDER=gemini \
 ACE_PATH="$ACE_PATH" \
 ANTHROPIC_BASE_URL=http://localhost:4000 \
+GEMINI_BASE_URL=http://localhost:4000/v1 \
 HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 \
 PYTHONUTF8=1 \
   "$HERE/.venv/Scripts/python.exe" -m harness.run \

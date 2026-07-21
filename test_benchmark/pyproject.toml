@@ -46,8 +46,22 @@ tau_bench = ["litellm>=1.41.0"]
 browsecomp = ["anthropic>=0.40"]          # browsing via Anthropic web tools + judge
 # REAL GDPval (openai/gdpval, NOT GDPval-AA): tool-free deliverable graded by an
 # LLM judge against the official rubric_json. Needs datasets (load the 220 gold
-# tasks) + anthropic (the judge / ANTHROPIC_API_KEY).
-gdpval = ["anthropic>=0.40", "datasets>=2.0"]
+# tasks) + anthropic (the judge / ANTHROPIC_API_KEY). The file INPUT bridge
+# (gdpval_files) reads attachments and the OUTPUT bridge (gdpval_codegen) runs
+# the agent's code to produce + verify the real deliverable file, so the readers
+# and the writer libraries the generated code may import both ship here. Keep
+# them in one interpreter — the sandbox runs the script with sys.executable.
+gdpval = [
+    "anthropic>=0.40", "datasets>=2.0",
+    # INPUT bridge: read attachments -> text
+    "openpyxl>=3.1", "python-docx>=1.1", "pdfplumber>=0.11", "python-pptx>=1.0",
+    "pillow>=10.0", "imageio>=2.34", "nbformat>=5.10",
+    # OUTPUT bridge: libraries the GENERATED deliverable code may import
+    "pandas>=2.2", "numpy>=1.26", "xlsxwriter>=3.2", "reportlab>=4.0",
+    "fpdf2>=2.8", "matplotlib>=3.8", "svgwrite>=1.4",
+    # LLM routing (proxy) + multimodal (vision/audio) attachment transcription
+    "openai>=1.40", "litellm>=1.41.0",
+]
 # REAL AutomationBench drives the upstream public task set (deterministic,
 # no user-sim LLM). Also clone the repo:
 #   git clone https://github.com/zapier/AutomationBench.git external/AutomationBench

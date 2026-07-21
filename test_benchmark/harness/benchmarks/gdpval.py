@@ -18,8 +18,16 @@ This is **GDPval** (openai/gdpval), NOT the Artificial-Analysis "GDPval-AA" vari
                     here.) No invented rubric; the criteria come from the dataset.
 (d) Data:           https://huggingface.co/datasets/openai/gdpval
 
-Flow: load_tasks (HF dataset; prompt + rubric) -> setup (tool-free Env; the final
-message is the deliverable) -> score (LLM grader over the official rubric_json).
+Flow: load_tasks (HF dataset; prompt + rubric, with attachment text injected via
+the INPUT bridge ``gdpval_files``) -> setup (tool-free Env; the final message is
+the deliverable) -> score (run the agent's code through the OUTPUT bridge
+``gdpval_codegen`` to VERIFY the file it produced, then grade the verified
+manifest with ``grade_with_retry`` over the official rubric_json).
+
+Deliverables are FILES (.xlsx/.docx/.pdf/.pptx). Grading the agent's raw text
+would credit a pasted markdown table as a real spreadsheet, so the grader is
+shown a verified manifest of what actually exists on disk (see gdpval_codegen);
+``grade_with_retry`` stops a malformed judge reply from scoring a good file 0.
 """
 
 from __future__ import annotations
@@ -102,6 +110,71 @@ def _parse_grades(text: str) -> dict[str, bool]:
         if isinstance(item, dict) and "rubric_item_id" in item:
             grades[str(item["rubric_item_id"])] = bool(item.get("met"))
     return grades
+
+
+def grade_with_retry(client, model, max_tokens, prompt, n_criteria, tries=3) -> dict[str, bool]:
+    """Grade with retries so measurement noise cannot score a good deliverable 0.
+
+    A truncated/malformed judge reply parses to ``{}``, and the scorer reads any
+    criterion absent from the dict as unmet -> a good submission scores 0 purely
+    from noise. Guards, in order:
+
+      (1) deterministic first attempt (temperature 0) so a clean reply is stable;
+          jitter to 0.5 on retry — at temperature 0 a malformed reply reproduces
+          identically, so the jitter is what lets it escape;
+      (2) up to ``tries`` attempts, so one transient hiccup is not the final score;
+      (3) a transient error is caught and retried (not scored as 0);
+      (4) require at least half the criteria to parse before accepting the reply,
+          so 3-of-94 parsed is treated as a bad read, not a valid verdict.
+    """
+    grades: dict[str, bool] = {}
+    need = max(1, n_criteria // 2)                         # (4) at least half must parse
+    for attempt in range(tries):                           # (2) up to `tries` attempts
+        try:
+            g = client.messages.create(
+                model=model, max_tokens=max_tokens,
+                temperature=0.0 if attempt == 0 else 0.5,  # (1) deterministic, then jitter
+                messages=[{"role": "user", "content": prompt}],
+            )
+            grades = _parse_grades(_text_of(g))
+        except Exception:                                  # noqa: BLE001 (3) retry, not 0
+            grades = {}
+        if len(grades) >= need:
+            break
+    return grades
+
+
+def submission_for_grader(deliverable: str, cg: dict) -> str:
+    """Frame the submission for the judge using the VERIFIED codegen outcome.
+
+    GDPval deliverables are files. Instead of grading the agent's raw text (which
+    lets a pasted markdown table pass as a real .xlsx), we run the agent's code,
+    verify what it actually produced, and tell the judge exactly what exists on
+    disk. Framing is keyed on ``cg['fail_type']`` (see gdpval_codegen):
+
+      none  -> a real, non-empty file exists: grade the verified manifest + content
+      model -> the code produced no file: file/format/structure criteria NOT met
+      env   -> this machine could not run the code: grade intended content only
+      no_code -> prose deliverable / execution disabled: grade the text as-is
+    """
+    ft = cg.get("fail_type", "no_code")
+    if ft == "none" and cg.get("ok"):
+        manifest = ", ".join(cg.get("files") or [])
+        return (f"[The agent produced these ACTUAL deliverable files by running its code: "
+                f"{manifest}. Their real extracted contents + verified STRUCTURE follow — grade "
+                f"file-type and structure criteria against THIS verified manifest and content.]\n"
+                f"{cg.get('extracted', '')}")
+    if ft == "model":
+        return ("[The agent's code FAILED to produce the required deliverable file (it is broken or "
+                "incomplete). No deliverable file exists. Score every criterion that requires the "
+                "file, its format, or its structure as NOT met; credit only content fully present "
+                "below.]\n" + deliverable)
+    if ft == "env":
+        return ("[The agent wrote code to build the deliverable file, but THIS environment could "
+                "not execute it (a tooling limitation, not a content error). Grade the intended "
+                "content and structure the code specifies as if it were the delivered artifact — "
+                "do NOT penalize the missing binary itself.]\n" + deliverable)
+    return deliverable  # no_code: prose deliverable, grade as-is
 
 
 def _score_rubric(rubric: list[dict], grades: dict[str, bool]) -> dict:
@@ -187,16 +260,27 @@ class GDPval(Benchmark):
                 rubric = json.loads(r["rubric_json"])
             except Exception:  # noqa: BLE001 - skip a malformed rubric
                 rubric = []
+            ref_urls = r.get("reference_file_urls") or []
+            # INPUT bridge: extract each attachment to text and append it to the
+            # prompt so the (text-only) agent can read the reference files. Same
+            # text for every arm; controlled by GDPVAL_INJECT_FILES.
+            prompt = r["prompt"]
+            try:
+                from harness.benchmarks import gdpval_files  # noqa: PLC0415 (lazy)
+                prompt = gdpval_files.augment_prompt(prompt, ref_urls)
+            except Exception as exc:  # noqa: BLE001 - never fail loading over I/O
+                print(f"[gdpval] file injection skipped for {r['task_id']}: {exc}")
             tasks.append(Task(
                 id=r["task_id"], benchmark="gdpval",
-                prompt=r["prompt"],
+                prompt=prompt,
                 metadata={
                     "task_id": r["task_id"],
                     "sector": r["sector"],
                     "occupation": r["occupation"],
                     "rubric": rubric,
-                    "n_reference_files": len(r.get("reference_file_urls") or []),
-                    "reference_file_urls": r.get("reference_file_urls") or [],
+                    "raw_prompt": r["prompt"],
+                    "n_reference_files": len(ref_urls),
+                    "reference_file_urls": ref_urls,
                     "deliverable_file_urls": r.get("deliverable_file_urls") or [],
                 },
             ))
@@ -226,8 +310,24 @@ class GDPval(Benchmark):
                           error="task has no rubric_json criteria to grade against",
                           metrics={"occupation": occ, "sector": sector})
 
+        # OUTPUT bridge: execute the agent's code, verify the real file it wrote,
+        # and frame the submission for the judge by the verified outcome. When the
+        # deliverable is prose (no code) or execution is disabled, this returns the
+        # text unchanged (fail_type "no_code").
+        cg = {"fail_type": "no_code", "ok": False, "files": []}
+        if os.environ.get("GDPVAL_CODEGEN", "1") != "0":
+            try:
+                from harness.benchmarks.gdpval_codegen import run_codegen  # noqa: PLC0415
+                from harness.benchmarks import gdpval_files  # noqa: PLC0415
+                attachments = gdpval_files.local_paths(
+                    task.metadata.get("reference_file_urls") or [])
+                cg = run_codegen(deliverable, attachments=attachments)
+            except Exception as exc:  # noqa: BLE001 - never fail scoring over the sandbox
+                print(f"[gdpval] codegen skipped for {task.id}: {exc}")
+        submission = submission_for_grader(deliverable, cg)
+
         prompt = GRADER_TEMPLATE.format(
-            prompt=task.prompt, submission=deliverable,
+            prompt=task.prompt, submission=submission,
             rubric=json.dumps([{"rubric_item_id": c.get("rubric_item_id"),
                                 "score": c.get("score"),
                                 "criterion": c.get("criterion"),
@@ -235,11 +335,8 @@ class GDPval(Benchmark):
                               ensure_ascii=False),
         )
         client = _anthropic()
-        g = client.messages.create(
-            model=self.grader_model, max_tokens=self.max_grader_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        grades = _parse_grades(_text_of(g))
+        grades = grade_with_retry(client, self.grader_model, self.max_grader_tokens,
+                                  prompt, len(rubric))
         rs = _score_rubric(rubric, grades)
         success = rs["score"] >= self.success_threshold and rs["required_ok"]
         return Result(
@@ -250,6 +347,8 @@ class GDPval(Benchmark):
                      "n_criteria": rs["n_criteria"], "n_met": rs["n_met"],
                      "required_ok": rs["required_ok"],
                      "deliverable_chars": len(deliverable),
+                     "fail_type": cg.get("fail_type"),
+                     "produced_files": cg.get("files") or [],
                      "occupation": occ, "sector": sector},
         )
 

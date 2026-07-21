@@ -22,6 +22,9 @@ venv/
 .env
 .env.*
 !.env.example
+# GDPval proxy keys (real Gemini keys; the .example template IS committed)
+gemini_keys.env
+!gemini_keys.env.example
 
 # ----- Claude Code 개인 설정 (권한/bypass 모드 — 커밋 금지) -----
 .claude/settings.local.json

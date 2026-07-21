@@ -1,0 +1,330 @@
+[
+  {
+    "id": 1,
+    "section": "__global__",
+    "content": "Produce the COMPLETE requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. A missing deliverable fails regardless of how detailed the surrounding explanation is.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM1_deliverable_missing"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "produce the complete requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. a missing deliverable fails regardless of how detailed the surrounding explanation is."
+  },
+  {
+    "id": 2,
+    "section": "analysis",
+    "content": "For any quantitative task, show the calculation steps and units, and double-check totals/percentages. When the prompt asks for workings, include them explicitly rather than only the final number.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM5_quantitative_error"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "for any quantitative task, show the calculation steps and units, and double-check totals/percentages. when the prompt asks for workings, include them explicitly rather than only the final number."
+  },
+  {
+    "id": 3,
+    "section": "__global__",
+    "content": "When the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (URLs / named sources / spec sheets) for each relevant claim rather than unsupported assertions.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM6_unsupported_claims"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "when the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (urls / named sources / spec sheets) for each relevant claim rather than unsupported assertions."
+  },
+  {
+    "id": 4,
+    "section": "__global__",
+    "content": "Match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. Treat every explicit structural instruction in the prompt as a hard requirement.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM2_format_noncompliance"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. treat every explicit structural instruction in the prompt as a hard requirement."
+  },
+  {
+    "id": 5,
+    "section": "__global__",
+    "content": "Treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. Map each item to a concrete place in the deliverable and confirm none is dropped before finishing.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM3_coverage_gap"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. map each item to a concrete place in the deliverable and confirm none is dropped before finishing."
+  },
+  {
+    "id": 6,
+    "section": "spreadsheet",
+    "content": "Ensure quantitative model inputs, such as population size, are derived directly from the source dataset rather than using arbitrary assumptions to ensure mathematical accuracy and auditability.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "59ffd719-fec5-408f-bf1c-e455136a6714",
+      "67e8e193-ecf9-47f1-a272-9df770bf0506"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "ensure quantitative model inputs, such as population size, are derived directly from the source dataset rather than using arbitrary assumptions to ensure mathematical accuracy and auditability."
+  },
+  {
+    "id": 7,
+    "section": "document",
+    "content": "Providing textual summaries instead of the required raw file formats or failing to execute the full scope of selection logic results in incomplete compliance with technical deliverable specifications.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "1d43f1eb-4011-47ac-8ad7-a3c467639a6a",
+      "9320f9b9-824e-4d78-81f8-c2a4d76074b1"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "providing textual summaries instead of the required raw file formats or failing to execute the full scope of selection logic results in incomplete compliance with technical deliverable specifications."
+  },
+  {
+    "id": 8,
+    "section": "document",
+    "content": "Apply explicit formatting constraints like bulleted lists and standardized citation styles early in the drafting phase to ensure all required information is captured in a scannable, rubric-compliant format.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "b48aee0a-9765-4f6a-ba1c-f8ba03888105",
+      "6a58609f-3ef3-4232-be7e-6acc868197dc",
+      "3a7d7e40-0fbb-4f9b-b5bc-7bfe639949a5"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "apply explicit formatting constraints like bulleted lists and standardized citation styles early in the drafting phase to ensure all required information is captured in a scannable, rubric-compliant format."
+  },
+  {
+    "id": 9,
+    "section": "document",
+    "content": "Avoid substituting professional/industry reports for peer-reviewed academic literature when research requirements explicitly specify scholarly or academic publications.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "0f758b5b-4b4a-4a7a-ae53-ce0b1c835f55"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "avoid substituting professional/industry reports for peer-reviewed academic literature when research requirements explicitly specify scholarly or academic publications."
+  },
+  {
+    "id": 10,
+    "section": "document",
+    "content": "Failure to strictly adhere to requested column headers and internal table schema results in automated validation errors.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "c3f2411d-0fd0-436b-87c6-7a373a7a79a9",
+      "1c30c7c3-4bee-4db2-8970-cff73ece293a"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "failure to strictly adhere to requested column headers and internal table schema results in automated validation errors."
+  },
+  {
+    "id": 11,
+    "section": "document",
+    "content": "Complex data fields, such as operating hours, require a standardized checklist to ensure all required components—including specific time indicators and recurring availability patterns—are present in every entry.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "959948fb-fdc1-437e-93c1-62f40452ad72",
+      "068cf95b-636b-4585-965b-0bcdeda0d132"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "complex data fields, such as operating hours, require a standardized checklist to ensure all required components—including specific time indicators and recurring availability patterns—are present in every entry."
+  },
+  {
+    "id": 12,
+    "section": "document",
+    "content": "Failure to verify content coverage against mandatory reference materials often results in missing required narrative segments or structural sequences.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "1c6bdd3f-6621-4cd2-9f4d-827734ce652f",
+      "c9015609-218d-4057-8143-e90cb4cde20b",
+      "c37fdac2-c410-4170-b132-6c85810e2ee7",
+      "dfb8dda9-85cb-418c-8496-8ae4b2c4e51e",
+      "8cfc6998-2acb-45c4-abfd-62f3bdecfb1f"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "failure to verify content coverage against mandatory reference materials often results in missing required narrative segments or structural sequences."
+  },
+  {
+    "id": 13,
+    "section": "document",
+    "content": "Create a checklist based on the source requirements to ensure all mandatory sub-topics and logical progressions are explicitly represented in the final outline.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "c9015609-218d-4057-8143-e90cb4cde20b",
+      "c37fdac2-c410-4170-b132-6c85810e2ee7",
+      "dfb8dda9-85cb-418c-8496-8ae4b2c4e51e",
+      "8cfc6998-2acb-45c4-abfd-62f3bdecfb1f"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "create a checklist based on the source requirements to ensure all mandatory sub-topics and logical progressions are explicitly represented in the final outline."
+  },
+  {
+    "id": 14,
+    "section": "spreadsheet",
+    "content": "Avoid delivering structured datasets as rendered text tables, as they fail to satisfy requirements for functional, sortable, and exhaustive data files.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "e4c87761-8757-45f5-b095-b8065041e53b",
+      "927193db-3bd9-4615-92cf-8d3a2b5a94c0"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "avoid delivering structured datasets as rendered text tables, as they fail to satisfy requirements for functional, sortable, and exhaustive data files."
+  },
+  {
+    "id": 15,
+    "section": "document",
+    "content": "Explicitly document the source taxonomy, classification level, and unit definitions in a dedicated tab or header to ensure data transparency and auditability.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "c3a463e1-1740-42fe-a17e-9d062f840857",
+      "dca29f62-4090-4564-904a-737de29874b6"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "explicitly document the source taxonomy, classification level, and unit definitions in a dedicated tab or header to ensure data transparency and auditability."
+  },
+  {
+    "id": 16,
+    "section": "presentation",
+    "content": "Delivering strategy content as text within a prompt response rather than in the requested native file format prevents immediate utility and stakeholder review.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "8c6d0c13-2a9a-4b46-863d-5dace49d072f"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "delivering strategy content as text within a prompt response rather than in the requested native file format prevents immediate utility and stakeholder review."
+  },
+  {
+    "id": 17,
+    "section": "document",
+    "content": "When a task requires a multi-dimensional strategy, use a checklist to map each mandatory requirement to a specific visual element on the slide to ensure no core components are omitted.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "33a7744d-0755-44ef-b5db-832cd591d4fc",
+      "6f86be12-637f-4d91-866d-bc284b467aba",
+      "a5db83bb-9732-403e-809b-06f6f6ed3055",
+      "21c71ca9-60e9-4961-a367-aac6ec678b46"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "when a task requires a multi-dimensional strategy, use a checklist to map each mandatory requirement to a specific visual element on the slide to ensure no core components are omitted."
+  },
+  {
+    "id": 18,
+    "section": "__global__",
+    "content": "Use the facts, figures, and constraints from the reference material described in the task. Do not invent values or contradict the provided data; ground specific claims in the reference content.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM4_reference_ignored"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "use the facts, figures, and constraints from the reference material described in the task. do not invent values or contradict the provided data; ground specific claims in the reference content."
+  },
+  {
+    "id": 19,
+    "section": "spreadsheet",
+    "content": "Avoid substituting actual file generation with text-based table representations, as failing to provide the requested binary format renders the analytical work non-functional for the end user.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "a44a888f-9404-4c58-b3bf-3c0694f3a418",
+      "dc993bea-8125-4e82-9a4e-06abcf7991b3"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "avoid substituting actual file generation with text-based table representations, as failing to provide the requested binary format renders the analytical work non-functional for the end user."
+  },
+  {
+    "id": 20,
+    "section": "spreadsheet",
+    "content": "Ensure all quantitative thresholds and analytical outputs are derived from dynamic cell formulas rather than manual entry to maintain data integrity and auditability.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "d6bfdd83-56aa-4f3f-b238-4ff3cc442e26"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "ensure all quantitative thresholds and analytical outputs are derived from dynamic cell formulas rather than manual entry to maintain data integrity and auditability."
+  },
+  {
+    "id": 21,
+    "section": "spreadsheet",
+    "content": "Failing to account for the entire provided data horizon leads to incomplete projections that ignore long-term scheduling dependencies.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "8026cda6-5bc0-4d51-9d47-4dbb6680f3ae"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "failing to account for the entire provided data horizon leads to incomplete projections that ignore long-term scheduling dependencies."
+  },
+  {
+    "id": 22,
+    "section": "document",
+    "content": "Always verify that your operational model strictly adheres to all constraints regarding production rates and capacity limits defined in the project brief.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "247e057a-4624-4550-bd1c-1581fb1ca82e",
+      "30bfb1d5-0a86-4e94-86cd-76c614a0e8e7"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "always verify that your operational model strictly adheres to all constraints regarding production rates and capacity limits defined in the project brief."
+  }
+]

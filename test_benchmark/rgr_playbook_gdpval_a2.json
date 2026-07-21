@@ -1,0 +1,249 @@
+[
+  {
+    "id": 1,
+    "section": "__global__",
+    "content": "Produce the COMPLETE requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. A missing deliverable fails regardless of how detailed the surrounding explanation is.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM1_deliverable_missing"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 100,
+    "_norm": "produce the complete requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. a missing deliverable fails regardless of how detailed the surrounding explanation is."
+  },
+  {
+    "id": 2,
+    "section": "__global__",
+    "content": "Match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. Treat every explicit structural instruction in the prompt as a hard requirement.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM2_format_noncompliance"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 100,
+    "_norm": "match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. treat every explicit structural instruction in the prompt as a hard requirement."
+  },
+  {
+    "id": 3,
+    "section": "__global__",
+    "content": "Treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. Map each item to a concrete place in the deliverable and confirm none is dropped before finishing.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM3_coverage_gap"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 100,
+    "_norm": "treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. map each item to a concrete place in the deliverable and confirm none is dropped before finishing."
+  },
+  {
+    "id": 4,
+    "section": "__global__",
+    "content": "Use the facts, figures, and constraints from the reference material described in the task. Do not invent values or contradict the provided data; ground specific claims in the reference content.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM4_reference_ignored"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 100,
+    "_norm": "use the facts, figures, and constraints from the reference material described in the task. do not invent values or contradict the provided data; ground specific claims in the reference content."
+  },
+  {
+    "id": 5,
+    "section": "analysis",
+    "content": "For any quantitative task, show the calculation steps and units, and double-check totals/percentages. When the prompt asks for workings, include them explicitly rather than only the final number.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM5_quantitative_error"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "for any quantitative task, show the calculation steps and units, and double-check totals/percentages. when the prompt asks for workings, include them explicitly rather than only the final number."
+  },
+  {
+    "id": 6,
+    "section": "__global__",
+    "content": "When the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (URLs / named sources / spec sheets) for each relevant claim rather than unsupported assertions.",
+    "kind": "pitfall",
+    "origin": "seed",
+    "evidence": [
+      "FM6_unsupported_claims"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 100,
+    "_norm": "when the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (urls / named sources / spec sheets) for each relevant claim rather than unsupported assertions."
+  },
+  {
+    "id": 7,
+    "section": "__global__",
+    "content": "Failure to mirror source data structures, such as column order and headers, prevents automated validation and undermines the integrity of the data lineage.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "b6da0784-f80d-49fd-9a3b-aba591fd8048",
+      "2b43d29a-93e3-4dcb-8b90-8088fe827fb7",
+      "db4d34b3-08e6-4f81-932c-2b136b13b450"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 99,
+    "_norm": "failure to mirror source data structures, such as column order and headers, prevents automated validation and undermines the integrity of the data lineage."
+  },
+  {
+    "id": 8,
+    "section": "__global__",
+    "content": "When applying statistical methodologies to deliverables, ensure the calculation logic strictly aligns with standard parameters and covers the full scope of required data segments to meet audit-grade accuracy expectations.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "67e8e193-ecf9-47f1-a272-9df770bf0506",
+      "9320f9b9-824e-4d78-81f8-c2a4d76074b1",
+      "7c2d9c16-9c1b-481d-a34d-389dc96e7f88"
+    ],
+    "helpful": 57,
+    "harmful": 42,
+    "usage_count": 99,
+    "_norm": "when applying statistical methodologies to deliverables, ensure the calculation logic strictly aligns with standard parameters and covers the full scope of required data segments to meet audit-grade accuracy expectations."
+  },
+  {
+    "id": 13,
+    "section": "__global__",
+    "content": "Strategic frameworks often fail when they present concepts as a list rather than a structured matrix, which prevents the audience from quickly mapping levers across multiple categories.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "99e304b0-08ca-49aa-baac-54f2bf85149c"
+    ],
+    "helpful": 48,
+    "harmful": 37,
+    "usage_count": 85,
+    "_norm": "strategic frameworks often fail when they present concepts as a list rather than a structured matrix, which prevents the audience from quickly mapping levers across multiple categories."
+  },
+  {
+    "id": 14,
+    "section": "__global__",
+    "content": "A complete strategic proposal must include an operational roadmap that details specific investment tiers, pilot scopes, success thresholds, and clear ownership for next steps to move beyond high-level theory.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "08d70b04-c47f-444e-8274-a4d0c55467a0",
+      "6aaf571c-daee-40b4-9097-ac04de4a9226",
+      "bd5403f4-9079-4f96-b953-9aa679feb25c",
+      "97778b38-ee26-4f71-bae4-af30f55d81d0",
+      "699ed529-f7a9-4120-aab5-6975b1e7af64"
+    ],
+    "helpful": 48,
+    "harmful": 37,
+    "usage_count": 85,
+    "_norm": "a complete strategic proposal must include an operational roadmap that details specific investment tiers, pilot scopes, success thresholds, and clear ownership for next steps to move beyond high-level theory."
+  },
+  {
+    "id": 15,
+    "section": "__global__",
+    "content": "Failure to utilize the full temporal scope of provided reference datasets often leads to incomplete modeling and inaccurate capacity planning projections.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "8026cda6-5bc0-4d51-9d47-4dbb6680f3ae"
+    ],
+    "helpful": 47,
+    "harmful": 35,
+    "usage_count": 82,
+    "_norm": "failure to utilize the full temporal scope of provided reference datasets often leads to incomplete modeling and inaccurate capacity planning projections."
+  },
+  {
+    "id": 16,
+    "section": "__global__",
+    "content": "Always validate model assumptions against stated operational constraints, such as specific production rates per shift, before finalizing recovery schedules.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "247e057a-4624-4550-bd1c-1581fb1ca82e",
+      "30bfb1d5-0a86-4e94-86cd-76c614a0e8e7"
+    ],
+    "helpful": 47,
+    "harmful": 35,
+    "usage_count": 82,
+    "_norm": "always validate model assumptions against stated operational constraints, such as specific production rates per shift, before finalizing recovery schedules."
+  },
+  {
+    "id": 17,
+    "section": "__global__",
+    "content": "Professional policy documents often require a comprehensive checklist of specific safety and administrative parameters that, if omitted, render the clinical framework incomplete.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "7457a651-8981-408c-a929-2136506d5389",
+      "c72c253a-75fd-4548-9f4a-87e708d498c2",
+      "0569bc45-1e40-48a3-899f-26e1622c942e",
+      "e1dcf0c3-79b2-497b-9615-92a3313e5a12",
+      "d8374059-a5f7-49ab-8fed-8d932c4c549b"
+    ],
+    "helpful": 41,
+    "harmful": 34,
+    "usage_count": 75,
+    "_norm": "professional policy documents often require a comprehensive checklist of specific safety and administrative parameters that, if omitted, render the clinical framework incomplete."
+  },
+  {
+    "id": 18,
+    "section": "__global__",
+    "content": "When drafting complex clinical guidelines, map every section heading against the provided requirements rubric prior to finalization to ensure no mandatory content blocks are overlooked.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "4592314c-23c8-4f3e-aae7-6503fdab28b0",
+      "244b3bdc-2105-42ac-8be5-cc11a623883d",
+      "e0e7f8a9-2e11-4595-b019-318c39718669",
+      "05fe4a24-d77c-4052-abcd-85f21bf4e05d"
+    ],
+    "helpful": 41,
+    "harmful": 34,
+    "usage_count": 75,
+    "_norm": "when drafting complex clinical guidelines, map every section heading against the provided requirements rubric prior to finalization to ensure no mandatory content blocks are overlooked."
+  },
+  {
+    "id": 19,
+    "section": "__global__",
+    "content": "When comparing two financial scenarios, failing to compute the final net value for each option prevents the audience from identifying the optimal choice.",
+    "kind": "pitfall",
+    "origin": "learned",
+    "evidence": [
+      "22e6d497-5beb-48f9-933d-30abb617dcf4",
+      "2760ab97-02cc-4f7f-b060-0d8773d63bbe",
+      "3e74944a-6147-4778-974e-75042c5fb8e8",
+      "874ca15a-bff2-48d8-a8af-178f78a8dbcb",
+      "2bfbd8a3-bbe1-4172-9a53-dfbe6a16f3ee"
+    ],
+    "helpful": 38,
+    "harmful": 33,
+    "usage_count": 71,
+    "_norm": "when comparing two financial scenarios, failing to compute the final net value for each option prevents the audience from identifying the optimal choice."
+  },
+  {
+    "id": 20,
+    "section": "__global__",
+    "content": "Include all necessary supporting variables, such as tax rates and specific intermediate deductions, to ensure calculations are transparent and independently verifiable.",
+    "kind": "strategy",
+    "origin": "learned",
+    "evidence": [
+      "eb0dbf49-3bc4-49a7-b880-c484249b636e",
+      "de3de385-511f-4d0f-b28e-fc5ac71b5088",
+      "65a70a22-ddc1-4ebd-85fd-9e34e04064aa",
+      "cf70c529-f1cb-470e-b9f9-2e6670dfbaee"
+    ],
+    "helpful": 38,
+    "harmful": 33,
+    "usage_count": 71,
+    "_norm": "include all necessary supporting variables, such as tax rates and specific intermediate deductions, to ensure calculations are transparent and independently verifiable."
+  }
+]

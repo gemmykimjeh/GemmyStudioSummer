@@ -1,24 +1,43 @@
-# ============================================================================
-# LiteLLM translator: Anthropic Messages API  <->  Google Gemini (free tier)
-# ----------------------------------------------------------------------------
-# The ace_gdpval grader uses anthropic.Anthropic().messages.create; this proxy
-# translates that to Gemini so the grader runs on the free Gemini API too.
+# LiteLLM proxy for the GDPval harness — one local endpoint on :4000 that fans
+# out across several Gemini free-tier API keys (round-robin), so generator,
+# reflector, curator AND grader all share the per-key quota without one arm
+# starving another.
 #
-# Run (from test_benchmark):
-#   PYTHONUTF8=1 .venv/Scripts/litellm.exe --config configs/litellm_gemini.yaml --port 4000
-# Point the grader at it:  ANTHROPIC_BASE_URL=http://localhost:4000
-# The ACE brain (Generator/Reflector/Curator) hits Gemini directly via
-#   ACE_API_PROVIDER=gemini (utils.py -> OpenAI-compat base_url). No proxy needed for it.
+# ⚠️  KNOW WHAT YOU ARE ACTUALLY CALLING. The list ends with a catch-all "*"
+#     deployment, so a request for e.g. `claude-sonnet-4-6` (the grader's default
+#     model name) is served by gemini-3.1-flash-lite. Generator, reflector,
+#     curator and grader are therefore the SAME small model. If you want a
+#     genuinely stronger grader, add a real provider entry above the catch-all —
+#     do not assume the requested model name is honoured.
 #
-# Needs GEMINI_API_KEY in the environment (free key from AI Studio).
-# ============================================================================
+# Keys live ONLY in configs/gemini_keys.env (gitignored). Start via
+# scripts/start_proxy.sh (loads that file, then launches this config on :4000).
+# GEMINI_KEY_2 / GEMINI_KEY_3 fall back to GEMINI_KEY_1 if unset, so a single
+# key still works.
 
 model_list:
-  # Any requested model name (incl. the grader's default claude-*) -> Gemini.
+  # Round-robin fan-out: the same model_name "*" across N keys => LiteLLM
+  # load-balances requests across every key that is set.
   - model_name: "*"
     litellm_params:
-      model: gemini/gemini-3.1-flash-lite   # pinned for A/B reproducibility
-      api_key: os.environ/GEMINI_API_KEY
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_KEY_1
+  - model_name: "*"
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_KEY_2
+  - model_name: "*"
+    litellm_params:
+      model: gemini/gemini-3.1-flash-lite
+      api_key: os.environ/GEMINI_KEY_3
+
+router_settings:
+  routing_strategy: simple-shuffle   # spread load across the keys above
+  num_retries: 3
+  # If a key hits its rate limit, cool it down briefly and try the next one.
+  allowed_fails: 1
+  cooldown_time: 30
 
 litellm_settings:
-  drop_params: true
+  drop_params: true          # silently drop params a model does not support
+  request_timeout: 600

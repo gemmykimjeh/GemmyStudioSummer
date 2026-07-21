@@ -140,6 +140,38 @@ class RotatingGeminiClient:
             f"[keyring] exhausted all keys after {attempts} attempts; "
             f"last error: {last_exc}")
 
+    # -- embeddings (semantic dedup) --------------------------------------
+    def embed(self, text: str, model: str | None = None) -> list[float] | None:
+        """Return an embedding vector for `text`, rotating keys on rate limits.
+
+        Uses Gemini's OpenAI-compatible embeddings endpoint. Returns None on any
+        non-rate-limit failure so callers can fall back to a cheaper heuristic.
+        A non-rate-limit failure (e.g. the model is unsupported here) latches
+        embeddings OFF for the rest of the run, so we degrade to the caller's
+        fallback once instead of spamming the same 404 on every bullet.
+        """
+        if getattr(self, "_embed_disabled", False):
+            return None
+        model = model or os.environ.get("RGR_EMBED_MODEL", "gemini-embedding-001")
+        last_exc: Exception | None = None
+        attempts = self._max_cycles * len(self._clients)
+        for _ in range(attempts):
+            i, client = self._next_live_client()
+            try:
+                r = client.embeddings.create(model=model, input=text)
+                return list(r.data[0].embedding)
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if _is_rate_limit(exc):
+                    self._park(i)
+                    continue
+                self._embed_disabled = True
+                print(f"[keyring] embed disabled (non-rate-limit error on "
+                      f"{model!r}): {exc}; falling back to Jaccard dedup")
+                return None
+        print(f"[keyring] embed exhausted all keys; last error: {last_exc}")
+        return None
+
 
 class _ChatNamespace:
     def __init__(self, parent: RotatingGeminiClient):

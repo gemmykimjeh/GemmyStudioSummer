@@ -138,8 +138,14 @@ class ACEGDPvalAgent(Agent):
 
         from harness.benchmarks.gdpval import (  # noqa: PLC0415 - reuse official grader
             GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of,
+            grade_with_retry, submission_for_grader,
         )
-        self._grade = (GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of)
+        self._grade = {
+            "GRADER_TEMPLATE": GRADER_TEMPLATE, "_parse_grades": _parse_grades,
+            "_score_rubric": _score_rubric, "_text_of": _text_of,
+            "grade_with_retry": grade_with_retry,
+            "submission_for_grader": submission_for_grader,
+        }
 
         gen_c, ref_c, cur_c = initialize_clients(self.api_provider)
         self._generator = Generator(gen_c, self.api_provider, self.model, self.max_tokens)
@@ -200,7 +206,11 @@ class ACEGDPvalAgent(Agent):
     # -- (b) benchmark feedback (data_processor role) + ACE reflect/count/curate
     def _adapt(self, task: Task, deliverable: str, bullet_ids: list) -> None:
         H = self._helpers
-        GRADER_TEMPLATE, _parse_grades, _score_rubric, _text_of = self._grade
+        G = self._grade
+        GRADER_TEMPLATE = G["GRADER_TEMPLATE"]
+        _score_rubric = G["_score_rubric"]
+        grade_with_retry = G["grade_with_retry"]
+        submission_for_grader = G["submission_for_grader"]
         rubric = task.metadata.get("rubric") or []
         step_id = f"gdpval_s_{self._step + 1}"
 
@@ -209,19 +219,29 @@ class ACEGDPvalAgent(Agent):
             print(f"[ace_gdpval] task {self._step}: skipped (empty deliverable/rubric)")
             return
 
+        # --- OUTPUT bridge: run the agent's code, verify the real file produced ---
+        cg = {"fail_type": "no_code", "ok": False, "files": []}
+        try:
+            from harness.benchmarks.gdpval_codegen import run_codegen  # noqa: PLC0415
+            from harness.benchmarks import gdpval_files  # noqa: PLC0415
+            attachments = gdpval_files.local_paths(
+                task.metadata.get("reference_file_urls") or [])
+            cg = run_codegen(deliverable, attachments=attachments)
+        except Exception as exc:  # noqa: BLE001
+            print(f"[ace_gdpval] codegen skipped on {task.id}: {exc}")
+        submission = submission_for_grader(deliverable, cg)
+
         # --- GDPval's OWN rubric grader = the benchmark correctness signal ---
         try:
             gprompt = GRADER_TEMPLATE.format(
-                prompt=task.prompt, submission=deliverable,
+                prompt=task.prompt, submission=submission,
                 rubric=json.dumps([{"rubric_item_id": c.get("rubric_item_id"),
                                     "score": c.get("score"),
                                     "criterion": c.get("criterion"),
                                     "required": c.get("required")} for c in rubric],
                                    ensure_ascii=False))
-            g = self._client.messages.create(
-                model=self.grader_model, max_tokens=4096,
-                messages=[{"role": "user", "content": gprompt}])
-            grades = _parse_grades(_text_of(g))
+            grades = grade_with_retry(self._client, self.grader_model, 4096,
+                                      gprompt, len(rubric))
             rs = _score_rubric(rubric, grades)
         except Exception as exc:  # noqa: BLE001
             print(f"[ace_gdpval] grader failed on {task.id}: {exc}")
@@ -293,6 +313,7 @@ class ACEGDPvalAgent(Agent):
         except Exception:  # noqa: BLE001
             pass
         print(f"[ace_gdpval] task {self._step}: rubric={rs['score']:.2f} pass~={correct} "
+              f"fail_type={cg.get('fail_type')} files={cg.get('files')} "
               f"bullets_cited={len(bullet_ids)} tags={len(bullet_tags)} "
               f"curator_ops={n_ops} playbook_chars={chars_before}->{len(self.playbook)} (dedup)")
 

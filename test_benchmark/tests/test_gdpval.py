@@ -95,6 +95,55 @@ def test_score_with_mocked_judge(monkeypatch):
     assert r.metrics["n_met"] == 1 and r.metrics["points_max"] == 4
 
 
+class _RetryClient:
+    """A fake judge whose reply improves on retry, to exercise grade_with_retry."""
+
+    def __init__(self, replies):
+        self._replies = list(replies)
+        self.calls = 0
+        self.temps = []
+
+        class _Msgs:
+            def create(inner, **kw):  # noqa: N805
+                self.temps.append(kw.get("temperature"))
+                text = self._replies[min(self.calls, len(self._replies) - 1)]
+                self.calls += 1
+                return type("R", (), {"content": [type("B", (), {"type": "text", "text": text})()]})()
+        self.messages = _Msgs()
+
+
+def test_grade_with_retry_recovers_from_malformed_first_reply():
+    good = '[{"rubric_item_id": "a", "met": true}, {"rubric_item_id": "b", "met": true}]'
+    client = _RetryClient(["garbage, not json at all", good])
+    grades = gd.grade_with_retry(client, "m", 4096, "prompt", n_criteria=2)
+    assert grades == {"a": True, "b": True}
+    assert client.calls == 2                 # retried once
+    assert client.temps[0] == 0.0            # deterministic first attempt
+    assert client.temps[1] == 0.5            # jitter on retry
+
+
+def test_grade_with_retry_rejects_partial_parse():
+    # Only 1 of 4 criteria parsed on every attempt -> below the half threshold,
+    # so all 3 attempts are consumed and the last (partial) verdict is returned.
+    partial = '[{"rubric_item_id": "a", "met": true}]'
+    client = _RetryClient([partial])
+    grades = gd.grade_with_retry(client, "m", 4096, "prompt", n_criteria=4, tries=3)
+    assert client.calls == 3                 # never satisfied the >=2 threshold
+    assert grades == {"a": True}
+
+
+def test_submission_for_grader_framing():
+    none = gd.submission_for_grader("x", {"fail_type": "none", "ok": True,
+                                          "files": ["out.xlsx"], "extracted": "DATA"})
+    assert "ACTUAL deliverable files" in none and "out.xlsx" in none and "DATA" in none
+    model = gd.submission_for_grader("prose", {"fail_type": "model", "ok": False, "files": []})
+    assert "No deliverable file exists" in model and model.endswith("prose")
+    env = gd.submission_for_grader("prose", {"fail_type": "env", "ok": False, "files": []})
+    assert "could not execute" in env
+    nocode = gd.submission_for_grader("just text", {"fail_type": "no_code", "ok": False})
+    assert nocode == "just text"
+
+
 @pytest.mark.skipif(importlib.util.find_spec("datasets") is None,
                     reason="datasets not installed")
 def test_load_tasks_reads_gdpval():

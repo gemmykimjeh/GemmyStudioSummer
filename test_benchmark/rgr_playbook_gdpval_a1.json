@@ -1,0 +1,86 @@
+[
+  {
+    "id": 1,
+    "section": "__global__",
+    "content": "Produce the COMPLETE requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. A missing deliverable fails regardless of how detailed the surrounding explanation is.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM1_deliverable_missing"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "produce the complete requested deliverable as the final response — the full document/table/content itself, never a summary, outline, plan, or description of what you would produce. a missing deliverable fails regardless of how detailed the surrounding explanation is."
+  },
+  {
+    "id": 2,
+    "section": "analysis",
+    "content": "For any quantitative task, show the calculation steps and units, and double-check totals/percentages. When the prompt asks for workings, include them explicitly rather than only the final number.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM5_quantitative_error"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "for any quantitative task, show the calculation steps and units, and double-check totals/percentages. when the prompt asks for workings, include them explicitly rather than only the final number."
+  },
+  {
+    "id": 3,
+    "section": "__global__",
+    "content": "When the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (URLs / named sources / spec sheets) for each relevant claim rather than unsupported assertions.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM6_unsupported_claims"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "when the prompt asks for sources, citations, links, or verifiable evidence, provide concrete references (urls / named sources / spec sheets) for each relevant claim rather than unsupported assertions."
+  },
+  {
+    "id": 4,
+    "section": "__global__",
+    "content": "Match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. Treat every explicit structural instruction in the prompt as a hard requirement.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM2_format_noncompliance"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "match the requested format exactly: file type, named tabs/sheets, column layout, section headings, and slide/section counts. treat every explicit structural instruction in the prompt as a hard requirement."
+  },
+  {
+    "id": 5,
+    "section": "__global__",
+    "content": "Treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. Map each item to a concrete place in the deliverable and confirm none is dropped before finishing.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM3_coverage_gap"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "treat any enumerated list of required topics/sections/stakeholders in the prompt as a mandatory checklist. map each item to a concrete place in the deliverable and confirm none is dropped before finishing."
+  },
+  {
+    "id": 6,
+    "section": "__global__",
+    "content": "Use the facts, figures, and constraints from the reference material described in the task. Do not invent values or contradict the provided data; ground specific claims in the reference content.",
+    "kind": "pitfall",
+    "origin": "guardrail",
+    "evidence": [
+      "FM4_reference_ignored"
+    ],
+    "helpful": 0,
+    "harmful": 0,
+    "usage_count": 0,
+    "_norm": "use the facts, figures, and constraints from the reference material described in the task. do not invent values or contradict the provided data; ground specific claims in the reference content."
+  }
+]
