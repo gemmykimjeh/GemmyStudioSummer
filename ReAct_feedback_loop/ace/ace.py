@@ -789,7 +789,10 @@ class ACE:
         parts = []
         pb = (self.single_pb or "").strip()
         has_bullets = any(parse_playbook_line(l) for l in pb.splitlines())
-        if has_bullets:
+        # Ablation switch (`show_playbook=False`): hide the LEARNED playbook from the
+        # generator while everything else — the rulebook, reflect, counting, curation —
+        # keeps running. Measures what the learned playbook adds ON TOP of the rulebook.
+        if has_bullets and getattr(self, "show_playbook", True):
             parts.append(
                 "## LEARNED PLAYBOOK — hints from past tasks, filed under predefined "
                 "sections (specific-rule sections vs general-principle sections). "
@@ -812,11 +815,20 @@ class ACE:
     def _single_learn(self, question, context, gen_response, final_answer,
                       is_correct, target, bullet_ids, step, step_id,
                       total_samples, config_params, log_dir,
-                      environment_feedback=None, score=None, penalty_weight=0.0):
+                      environment_feedback=None, score=None, penalty_weight=0.0,
+                      allow_growth=True):
         """One-timescale single-playbook learning for one task:
         ONE dual reflect (concrete + abstract lesson in a single pass) → ONE
         tag-aware curator (ADD tagged / DELETE re-learned disclaimers) with
-        grader-aligned counting + net-harmful prune; compress every k tasks."""
+        grader-aligned counting + net-harmful prune; compress every k tasks.
+
+        ``allow_growth=False`` (v6, used on already-good tasks) keeps the parts
+        that make the playbook BETTER — the reflect, its helpful/harmful bullet
+        tagging, the grader-aligned counting, and the net-harmful prune — but
+        skips the curator, which is the only step that makes the playbook BIGGER.
+        A task that already scored well has little to teach; distilling "lessons"
+        from it mostly adds bulk and post-hoc rationalisation, while its evidence
+        about which existing bullets helped or hurt is still worth collecting."""
         token_budget = config_params['token_budget']
         use_json_mode = config_params['use_json_mode']
         no_ground_truth = config_params['no_ground_truth']
@@ -866,20 +878,34 @@ class ACE:
 
         # ONE tag-aware curator: ADD tagged insights / DELETE re-learned
         # capability-disclaimer bullets; then dedup + prune net-harmful.
+        # The curator is the ONLY step that grows the playbook, so it is what
+        # allow_growth gates; pruning still runs either way.
         if reflection and reflection.strip():
-            stats = get_playbook_stats(self.single_pb)
-            self.single_pb, self.next_single_id, _, _ = self.curator.curate(
-                current_playbook=self.single_pb, recent_reflection=reflection,
-                question_context=context + rb_block, current_step=step,
-                total_samples=total_samples, token_budget=token_budget,
-                playbook_stats=stats, use_ground_truth=not no_ground_truth,
-                use_json_mode=use_json_mode, call_id=f"{step_id}_curate_single",
-                log_dir=log_dir, next_global_id=self.next_single_id,
-                mode="single", protected_ids=None)
-            self.single_pb = self._maybe_dedup(self.single_pb)
+            if allow_growth:
+                stats = get_playbook_stats(self.single_pb)
+                self.single_pb, self.next_single_id, _, _ = self.curator.curate(
+                    current_playbook=self.single_pb, recent_reflection=reflection,
+                    question_context=context + rb_block, current_step=step,
+                    total_samples=total_samples, token_budget=token_budget,
+                    playbook_stats=stats, use_ground_truth=not no_ground_truth,
+                    use_json_mode=use_json_mode, call_id=f"{step_id}_curate_single",
+                    log_dir=log_dir, next_global_id=self.next_single_id,
+                    mode="single", protected_ids=None)
+                self.single_pb = self._maybe_dedup(self.single_pb)
+            else:
+                print("  [v6] playbook growth skipped (task already scored well); "
+                      "counting + prune still applied")
             self.single_pb, pruned = prune_harmful_bullets(self.single_pb)
             if pruned:
                 print(f"  [prune] single: removed {len(pruned)} net-harmful bullet(s): {pruned}")
+            # v6.1: a bullet telling the writer to consult the RUBRIC can never be
+            # acted on — the generator never sees one — yet the reflector kept
+            # deriving them because it DOES see the grading feedback. Flat word ban;
+            # the reflector and curator prompts are told the rule so they phrase
+            # lessons without it (the useful content survives, the crutch does not).
+            self.single_pb, dropped = sanitize_playbook(self.single_pb)
+            if dropped:
+                print(f"  [sanitize] removed {len(dropped)} rubric-referencing bullet(s): {dropped}")
 
         # Cross-task compress every k tasks.
         self._tasks_since_compress += 1

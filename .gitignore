@@ -28,10 +28,19 @@ venv/
 .claude/settings.json
 
 # ----- 벤치마크 실행 로그 / 출력물 (test_benchmark) -----
+# 실행 산출물은 전용 폴더에만 생성됨 (레포 루트 오염 금지):
+#   playbooks/ = ACE가 학습·persist 하는 플레이북 + _bak_ 회전본
+#   logs/      = 실행 라이브 로그 (*_live.log 등)
+playbooks/
+logs/
+*.log
 runs/
 results/
 ace_gdpval_run/
 ace_react_run/
+ace_browsecomp_run/
+ace_terminal_run/
+ace_dual_terminal_run/
 ace_tau_run/
 
 # ----- 외부 벤치마크 클론 (test_benchmark/external, ~509M, 각자 .git 보유) -----

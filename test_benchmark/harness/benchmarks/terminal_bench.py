@@ -49,7 +49,21 @@ from harness.schema import Result, Task, ToolResult, ToolSpec, Trajectory
 _DEFAULT_TASKS_DIR = (
     Path(__file__).resolve().parents[2] / "external" / "terminal-bench-2"
 )
-_MAX_OUTPUT = 4000  # cap tool output returned to the agent
+# Match the upstream harness rather than inventing our own limits.
+#
+# Output: terminal-bench runs the agent against a tmux session started as
+# `tmux new-session -x 160 -y 40` and reads it with `capture-pane` — so the
+# reference agents (Terminus 1 and 2) see ONE SCREEN, 160x40 = 6400 chars.
+# `capture_entire=True` (full scrollback) exists but is used only by the harness
+# for logging, never by an agent. We therefore cap at 6400 and, crucially, keep
+# the TAIL: a terminal screen shows the most recent output, which is where
+# errors, test summaries and final results live. Keeping the head (as this
+# adapter used to) hands the agent the preamble and throws the verdict away.
+_MAX_OUTPUT = 6400
+# Per-command wait: upstream's default block is `max_timeout_sec = 180.0`
+# (terminal_bench/terminal/models.py). Builds and training runs legitimately
+# exceed the 120s this adapter used to allow.
+_CMD_TIMEOUT = 180.0
 _CLONE_HINT = (
     "Terminal-Bench 2.0 tasks not found at {d}. Clone them:\n"
     "  git clone https://github.com/laude-institute/terminal-bench-2 "
@@ -114,12 +128,20 @@ class TerminalBenchEnv(Env):
         self.n_commands += 1
         try:
             p = _docker(["exec", self.container, "bash", "-lc", cmd],
-                        self.endpoint, timeout=120)
+                        self.endpoint, timeout=_CMD_TIMEOUT)
         except subprocess.TimeoutExpired:
-            return ToolResult(output="[command timed out after 120s]", is_error=True)
+            return ToolResult(
+                output=f"[command timed out after {_CMD_TIMEOUT:g}s]", is_error=True)
         out = (p.stdout or "") + (p.stderr or "")
         if len(out) > _MAX_OUTPUT:
-            out = out[:_MAX_OUTPUT] + "\n...[truncated]"
+            # Keep the tail, like a terminal screen: the end holds the error and
+            # the result. Say how much was dropped so the agent knows to narrow
+            # the command (tail/grep) rather than assume it saw everything.
+            dropped = len(out) - _MAX_OUTPUT
+            out = (f"[...{dropped} earlier chars omitted — this is the last "
+                   f"{_MAX_OUTPUT} chars, as on a terminal screen. Re-run with "
+                   f"head/grep/less if you need the start.]\n"
+                   + out[-_MAX_OUTPUT:])
         if p.returncode != 0:
             out = f"[exit {p.returncode}]\n{out}"
         return ToolResult(output=out or "[no output]", is_error=p.returncode != 0)
@@ -175,6 +197,15 @@ class TerminalBench(Benchmark):
                     "memory_mb": environ.get("memory_mb"),
                     "verifier_timeout_sec": float(
                         cfg.get("verifier", {}).get("timeout_sec", 900)),
+                    # The official PER-TASK agent budget. Terminal-Bench bounds
+                    # an attempt by time, not by a step count, and the budget
+                    # varies per task (750s .. 12000s across the 2.0 set), so a
+                    # single global --timeout cannot express it. Agents enforce
+                    # this themselves; the runner's global timeout must stay off
+                    # (it also mis-attributes: it kills an arbitrary *pending*
+                    # task, not the one actually running).
+                    "agent_timeout_sec": float(
+                        cfg.get("agent", {}).get("timeout_sec", 900)),
                     "difficulty": cfg.get("metadata", {}).get("difficulty"),
                 },
             ))

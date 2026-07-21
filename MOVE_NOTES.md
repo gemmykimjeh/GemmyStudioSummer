@@ -21,7 +21,8 @@ C:\GemmyStudioSummer\
 ## 이동 전 미리 고친 절대경로 (전부 적용 완료)
 1. `test_benchmark\harness\agents\ace_gdpval.py`  — `ace_path` → `C:\GemmyStudioSummer\ReAct`
 2. `test_benchmark\harness\agents\ace_tau.py`     — `ace_path` → `C:\GemmyStudioSummer\ReAct`
-3. `test_benchmark\harness\agents\ace_react.py`   — `ace_path`(+docstring) → `C:\GemmyStudioSummer\ReAct`
+3. `test_benchmark\harness\agents\ace_browsecomp.py`   — `ace_path`(+docstring) → `C:\GemmyStudioSummer\ReAct`
+   (renamed from `ace_react.py`; the registered agent name is now `ace_browsecomp`)
 4. `test_benchmark\configs\loop_ab.yaml`          — `hermes_home` self-경로 → 새 위치
 5. `_tau_upstream.py` / `_automation_upstream.py` / `clone_external.ps1` — docstring/주석 경로 갱신(비기능)
 

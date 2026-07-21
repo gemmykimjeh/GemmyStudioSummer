@@ -29,7 +29,14 @@ case "$ARM" in
   *) echo "ARM must be 'baseline' or 'fbl'"; exit 2 ;;
 esac
 : "${GEMINI_API_KEY:?set GEMINI_API_KEY (or put it in .env and source it)}"
+
+# Run artifacts live in dedicated (gitignored) folders, never the repo root:
+#   logs/      <- this run's live console log
+#   playbooks/ <- the ACE playbooks the agents persist (see agent out_prefix)
+mkdir -p "$HERE/logs" "$HERE/playbooks"
+LOG="${LOG:-$HERE/logs/${RUN_ID}_live.log}"
 echo ">>> ARM=$ARM  AGENT=$AGENT  ACE_PATH=$ACE_PATH  MODEL=$MODEL  LIMIT=$LIMIT  RUN_ID=$RUN_ID"
+echo ">>> log: $LOG"
 
 # Route BOTH surfaces through the rotation proxy:
 #   ANTHROPIC_BASE_URL -> grader (anthropic SDK)
@@ -42,4 +49,4 @@ HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 \
 PYTHONUTF8=1 \
   "$HERE/.venv/Scripts/python.exe" -m harness.run \
     --agent "$AGENT" --benchmark gdpval --model "$MODEL" --split train \
-    --limit "$LIMIT" --concurrency 1 --run-id "$RUN_ID" --resume
+    --limit "$LIMIT" --concurrency 1 --run-id "$RUN_ID" --resume 2>&1 | tee -a "$LOG"

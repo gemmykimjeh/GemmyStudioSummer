@@ -61,10 +61,11 @@ class ACEDualGDPvalAgent(Agent):
         api_provider: str | None = None,
         ace_path: str | None = None,
         grader_model: str = "claude-sonnet-4-6",
-        out_prefix: str = "ace_dual_gdpval",
+        out_prefix: str = "playbooks/ace_dual_gdpval",
         curator_frequency: int = 1,
         token_budget: int = 80000,
         success_threshold: float = 0.5,
+        learn_max_score: float = 0.75,
         use_bulletpoint_analyzer: bool = True,
         dedup_threshold: float = 0.85,
         api_key: str | None = None,
@@ -80,6 +81,11 @@ class ACEDualGDPvalAgent(Agent):
         self.curator_frequency = curator_frequency
         self.token_budget = token_budget
         self.success_threshold = success_threshold
+        # v6: only LEARN from tasks that left room to improve. A task scoring above
+        # this is already good; distilling "lessons" from it mostly adds playbook
+        # bulk and post-hoc rationalisation of what already worked. Set to 1.0 to
+        # learn from every task (the v5 behaviour).
+        self.learn_max_score = learn_max_score
         self.use_bulletpoint_analyzer = use_bulletpoint_analyzer
         self.dedup_threshold = dedup_threshold
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
@@ -149,6 +155,13 @@ class ACEDualGDPvalAgent(Agent):
             use_bulletpoint_analyzer=self.use_bulletpoint_analyzer,
             bulletpoint_analyzer_threshold=self.dedup_threshold,
         )
+        # Ablation toggle: ACE_SHOW_PLAYBOOK=0 hides the LEARNED playbook from the
+        # generator (the immutable rulebook still shows, learning still runs), to
+        # measure what the playbook contributes on top of the rulebook.
+        self._ace.show_playbook = os.environ.get("ACE_SHOW_PLAYBOOK", "1") != "0"
+        if not self._ace.show_playbook:
+            print("[ace_dual] ABLATION: learned playbook HIDDEN from generator "
+                  "(rulebook only); learning still runs.")
         self._extract_answer = extract_answer
         self._pb = {
             "extract_playbook_bullets": extract_playbook_bullets,
@@ -402,6 +415,11 @@ class ACEDualGDPvalAgent(Agent):
         # used for helpful/harmful counting — no separate counting call. ---
         self._step += 1
         pb_before = len(ace.single_pb)
+        # v6 gate: every task still REFLECTS (so helpful/harmful tagging, the
+        # grader-aligned counting, and the net-harmful prune keep seeing all the
+        # evidence), but only tasks with headroom may GROW the playbook. Above
+        # learn_max_score there is little genuine lesson to add — only bulk.
+        allow_growth = rs["score"] <= self.learn_max_score
         if self._step % self.curator_frequency == 0:
             try:
                 ace._single_learn(
@@ -424,19 +442,22 @@ class ACEDualGDPvalAgent(Agent):
                     environment_feedback=environment_feedback,  # rubric score + missed criteria
                     score=rs["score"],            # A/C: continuous grader score drives weighting
                     penalty_weight=penalty_weight,  # B: blame cited bullets for docked points
+                    allow_growth=allow_growth,      # v6: no ADD on already-good tasks
                 )
             except Exception as exc:  # noqa: BLE001
                 print(f"[ace_dual] single_learn failed on {task.id}: {exc}")
 
         self._persist()
         print(f"[ace_dual] task {self._step}: rubric={rs['score']:.2f} pass~={is_correct} "
-              f"bullets_cited={len(bullet_ids)} playbook={pb_before}->{len(ace.single_pb)}")
+              f"bullets_cited={len(bullet_ids)} playbook={pb_before}->{len(ace.single_pb)}"
+              f"{'' if allow_growth else f' [no-growth: score>{self.learn_max_score}]'}")
 
     # -- persist the single learned playbook after each task ---------------
     # (The rulebook is immutable → never written; it reloads from ace/rulebook.txt.)
     def _persist(self) -> None:
         ace = self._ace
         try:
+            os.makedirs(os.path.dirname(self.out_prefix) or ".", exist_ok=True)
             with open(f"{self.out_prefix}_single.txt", "w", encoding="utf-8") as f:
                 f.write(ace.single_pb)
         except Exception:  # noqa: BLE001

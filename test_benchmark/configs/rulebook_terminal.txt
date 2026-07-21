@@ -1,0 +1,46 @@
+# ==========================================================================
+# RULEBOOK (terminal) — immutable, must-follow rules. Checked on EVERY task.
+# Never added to, edited, or deleted by the reflector/curator. These take
+# precedence over anything in the learned playbook.
+#
+# NOTE: this whole file is fed to the model verbatim, comments included —
+# keep the header short and free of off-domain examples. Rationale and
+# provenance live in harness/agents/ace_dual_terminal.py's docstring, not here.
+# ==========================================================================
+
+# ---- ARTIFACTS: what "done" means on a shell task -----------------------
+[rb-fmt-01] :: The deliverable is the CHANGED STATE OF THE MACHINE, not a description of it. Run the commands that make the change; never answer with a plan, a summary of what you would do, or a script you did not execute.
+[rb-fmt-02] :: Write every artifact the task names at EXACTLY the path it specifies — exact directory, exact filename, exact extension. A file at a nearly-right path does not count.
+[rb-fmt-03] :: After writing a file, confirm it exists and holds what you intended (ls -l, cat, head, wc -l, or the format's own reader). A file you never re-read is a file you have not verified.
+[rb-fmt-04] :: Match the exact output format the task states — field order, separators, headers, trailing newline, encoding, permissions. Tests compare bytes, not intent.
+[rb-fmt-05] :: Leave no partial state behind: temp files, half-written outputs, stopped services, or a shell left in a directory the task did not ask for. Finish or revert.
+
+# ---- TOOLS & COMMANDS ---------------------------------------------------
+[rb-api-01] :: Read a command's actual interface (--help, man, the source, the config file) before the first real invocation; do not guess flag names or argument order. A guessed flag that silently means something else is worse than an error.
+[rb-api-02] :: Check what is actually installed before depending on it (which, command -v, package manager query). Do not assume a tool, language runtime, or library is present — and do not assume it is absent without checking.
+[rb-api-03] :: Prefer the tool the environment already uses over one you would have to install. If you do install, pin what you install and confirm the install succeeded before building on it.
+[rb-api-04] :: When a command supports a dry-run or list mode (-n, --dry-run, --list, -t), use it to confirm the target set before running the real, mutating invocation.
+
+# ---- ERRORS & DESTRUCTIVE ACTIONS ---------------------------------------
+[rb-err-01] :: Do not perform an irreversible or destructive action (rm -rf, overwrite, force-push, drop, truncate, kill) without first confirming the exact target and that the action is actually required. Prefer a reversible alternative (move aside, back up, copy) when one exists.
+[rb-err-02] :: READ the error text before reacting. Exit status, stderr, and the failing line name the cause; acting on the first guess without reading them is the most common way a task is lost.
+[rb-err-03] :: Never treat "no output" as success. Check the exit status ($?) explicitly when a command's success is not otherwise visible; many tools fail silently.
+[rb-err-04] :: When a command must succeed for the next step to make sense, verify it did before proceeding. Do not chain further work onto an unverified result.
+
+# ---- VERIFICATION -------------------------------------------------------
+[rb-chk-01] :: Before finalizing, re-read the original task and confirm every explicit requirement is satisfied — each named file, path, format, value, and constraint. Walk the list; do not rely on recall.
+[rb-chk-02] :: Verify with an INDEPENDENT check, not by re-reading your own command. Re-run the program, re-open the file, query the service, run the project's own tests — evidence that the end state is right, not that your command was typed correctly.
+[rb-chk-03] :: When the task implies a check it does not spell out (the service must actually start, the script must run under the stated interpreter, the fix must not break the neighbouring case), perform it anyway.
+
+# ---- PROBLEM SOLVING ----------------------------------------------------
+[rb-prin-01] :: Understand precisely what the task is asking for — its goal, its end state, and its constraints — and satisfy exactly that. Solving an adjacent problem well still fails.
+[rb-prin-02] :: Restate the goal in your own terms before acting; solving the wrong problem well is the most expensive kind of error.
+[rb-prin-03] :: Prefer the smallest reversible step that yields new information, and verify it worked before committing to the next step.
+[rb-prin-04] :: Inspect before you modify. Understand the current state (ls, cat, git status, ps, config files) before changing it; a change made against an assumed state is a guess.
+[rb-prob-01] :: Decompose a complex task into ordered sub-goals; satisfy the explicit, verifiable requirements first and leave optional polish for last.
+[rb-prob-02] :: When blocked, isolate the root cause before attempting fixes; treat symptoms only once you can name the underlying cause.
+[rb-prob-03] :: Prefer small, individually checkable commands over one long chained pipeline, so a failure tells you exactly which part broke.
+[rb-strat-01] :: Gather the relevant context or specification before producing output rather than acting on unstated assumptions.
+[rb-strat-02] :: Work within the environment as given. Do not rewrite, reformat, or "improve" code, config, or data the task did not ask you to touch — collateral changes break tests that were passing.
+[rb-fail-01] :: Repeating an identical failing command rarely helps; after a failure, change the approach instead of retrying the same thing.
+[rb-fail-02] :: If an approach has failed twice for the same underlying reason, step back and question the assumption behind it rather than varying the surface details.

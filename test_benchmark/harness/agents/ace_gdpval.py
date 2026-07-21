@@ -58,7 +58,7 @@ class ACEGDPvalAgent(Agent):
         api_provider: str | None = None,
         ace_path: str | None = None,
         grader_model: str = "claude-sonnet-4-6",
-        playbook_out: str = "ace_playbook_gdpval.txt",
+        playbook_out: str = "playbooks/ace_playbook_gdpval.txt",
         curator_frequency: int = 1,
         token_budget: int = 80000,
         success_threshold: float = 0.5,
@@ -299,6 +299,7 @@ class ACEGDPvalAgent(Agent):
                 print(f"[ace_gdpval] analyzer failed on {task.id}: {exc}")
 
         try:
+            os.makedirs(os.path.dirname(self.playbook_out) or ".", exist_ok=True)
             with open(self.playbook_out, "w", encoding="utf-8") as f:
                 f.write(self.playbook)
         except Exception:  # noqa: BLE001

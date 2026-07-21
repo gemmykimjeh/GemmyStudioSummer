@@ -63,13 +63,57 @@ _ENV_MARKERS = ("modulenotfounderror", "no module named", "importerror",
                 "permission denied", "access is denied", "timeout", "winerror")
 
 
+def _is_empty_artifact(path: str, fn: str) -> bool:
+    """True when the file exists but carries no content at all (0 bytes, a workbook
+    with no non-empty cell, a document with no text, a deck with no slides).
+
+    Catches only "there is nothing here", never "there is little here": a one-line
+    KPI or an executive one-pager is a legitimate deliverable, so output size is
+    deliberately NOT compared against input size.
+    """
+    try:
+        if os.path.getsize(path) == 0:
+            return True
+        ext = os.path.splitext(fn)[1].lower()
+        if ext in (".xlsx", ".xlsm"):
+            import openpyxl  # noqa: PLC0415
+            wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+            try:
+                for ws in wb.worksheets:
+                    for row in ws.iter_rows():
+                        for c in row:
+                            if c.value not in (None, ""):
+                                return False
+                return True
+            finally:
+                wb.close()
+        if ext == ".docx":
+            import docx  # noqa: PLC0415
+            d = docx.Document(path)
+            if any((p.text or "").strip() for p in d.paragraphs):
+                return False
+            return not any(c.text.strip() for t in d.tables for r in t.rows for c in r.cells)
+        if ext == ".pptx":
+            from pptx import Presentation  # noqa: PLC0415
+            return len(Presentation(path).slides) == 0
+    except Exception:  # noqa: BLE001
+        return False      # unreadable-but-present is not the same as empty; never guess
+    return False
+
+
 def _classify_failure(error: str, files: list) -> str:
-    """Why did we not get a file? 'none' produced ok; 'env' = tooling/OS (not the
-    model's fault -> don't blame the agent); 'model' = the model's code is broken
-    (syntax/truncation/no-save/logic -> a genuine agent failure)."""
-    if files:
-        return "none"
+    """Why did we not get a usable file? 'none' produced ok; 'env' = tooling/OS (not
+    the model's fault -> don't blame the agent); 'model' = the model's code is broken
+    (syntax/truncation/no-save/logic -> a genuine agent failure).
+
+    A non-empty ``error`` means the script exited non-zero (or timed out), so it did
+    NOT succeed — even if a partially-written file survives on disk. Trusting the
+    file's mere existence was hiding real crashes as clean successes: one task's
+    script died on a KeyError after writing a stub workbook and was scored as a
+    produced deliverable that met 1 of 43 criteria."""
     e = (error or "").lower()
+    if files and not e:
+        return "none"
     if not e:
         return "model"                       # ran clean but saved nothing (no save call)
     if any(m in e for m in _ENV_MARKERS):
@@ -101,6 +145,42 @@ def _extract_code(deliverable: str) -> str:
     return ""
 
 
+_CELLREF = re.compile(r"(\$?[A-Za-z]{1,3})(\$?)(\d+)")
+
+
+def _formula_pattern(f: str) -> str:
+    """Collapse a filled-down formula to its shape: '=B7+C7' -> '=Bn+Cn'.
+    Absolute rows ($E$2) are kept — they are fixed anchors, not fill positions."""
+    return _CELLREF.sub(
+        lambda m: m.group(1) + m.group(2) + (m.group(3) if m.group(2) == "$" else "n"), f)
+
+
+def _formula_digest(ws, cap: int = 10) -> list[str]:
+    """Representative formulas for a sheet, grouped by shape.
+
+    Rubrics routinely ask things like "End_of_Week is COMPUTED as Start + Demand -
+    Capacity using a formula". Reading a workbook with ``data_only=True`` returns
+    only cached values, so the judge could never verify that a real formula exists
+    and marked every such criterion unmet. We therefore surface the formulas — but
+    a filled column can hold thousands of them (one gold file has 3,744), so we
+    group by shape and print one example plus the cell range per group."""
+    groups: dict[str, list[str]] = {}
+    for row in ws.iter_rows():
+        for c in row:
+            if isinstance(c.value, str) and c.value.startswith("="):
+                groups.setdefault(_formula_pattern(c.value), []).append(c.coordinate)
+    if not groups:
+        return []
+    ordered = sorted(groups.items(), key=lambda kv: -len(kv[1]))
+    lines = [f"    formula patterns ({len(groups)} distinct):"]
+    for pat, cells in ordered[:cap]:
+        span = cells[0] if len(cells) == 1 else f"{cells[0]}..{cells[-1]}"
+        lines.append(f"      [{len(cells)}x] {span}  {pat}")
+    if len(ordered) > cap:
+        lines.append(f"      ... +{len(ordered) - cap} more distinct formula patterns")
+    return lines
+
+
 def _structure_summary(path: str, fn: str) -> str:
     """Read the produced file's real STRUCTURE (not just text values) so visual/
     structural rubric criteria — sheet names, page size/orientation, formatting,
@@ -126,6 +206,7 @@ def _structure_summary(path: str, fn: str) -> str:
                 out.append(f"  sheet '{ws.title}': {ws.max_row} rows x {ws.max_column} cols, "
                            f"merged={len(list(ws.merged_cells.ranges))}, formulas={formulas}, "
                            f"bold_cells={bold}, number_formats={sorted(nfmt)[:6]}")
+                out.extend(_formula_digest(ws))
             wb.close()
             return "\n".join(out)
         if ext == ".docx":
@@ -204,12 +285,18 @@ def run_codegen(deliverable: str, source_files=None, timeout: int = 120) -> dict
         if (fn == "deliverable_gen.py" or fn in src_names
                 or os.path.splitext(fn)[1].lower() not in _OUTPUT_EXT):
             continue  # skip the script and the copied-in source attachments
+        if _is_empty_artifact(path, fn):
+            # A file with no content at all is not a deliverable. Count it as a
+            # failure so the repair loop keeps working instead of accepting a stub.
+            if not err:
+                err = f"produced '{fn}' but it is empty (no content written)"
+            continue
         files.append(fn)
         struct = _structure_summary(path, fn)
         parts.append(f"\n===== PRODUCED FILE: {fn} =====\n"
                      + (struct + "\n" if struct else "") + _extract_output(path, fn))
     extracted = "".join(parts)
-    ok = bool(files)
+    ok = bool(files) and not err          # a crashed script did not succeed
     return {"ran": True, "ok": ok, "files": files, "extracted": extracted,
             "error": err if not ok else "", "workdir": workdir,
             "fail_type": _classify_failure(err, files)}

@@ -1,0 +1,237 @@
+[
+  {
+    "task_id": "adaptive-rejection-sampler",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 18,
+    "tests": "8/9",
+    "wall_time": 211.5,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_can_generate_standard_distribution_samples"
+    ],
+    "signals": [
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "bn-fit-modify",
+    "difficulty": "hard",
+    "success": true,
+    "score": 1.0,
+    "num_commands": 36,
+    "tests": "9/9",
+    "wall_time": 212.4,
+    "harness_error": null,
+    "failing_tests": [],
+    "signals": [
+      "output_truncated×2"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "break-filter-js-from-html",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 41,
+    "tests": "0/1",
+    "wall_time": 182.7,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_out_html_bypasses_filter"
+    ],
+    "signals": [
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "build-cython-ext",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 41,
+    "tests": "9/11",
+    "wall_time": 212.4,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_ccomplexity",
+      "test_outputs.py::test_pyknotid_repository_tests"
+    ],
+    "signals": [
+      "output_truncated×5"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "build-pmars",
+    "difficulty": "medium",
+    "success": true,
+    "score": 1.0,
+    "num_commands": 22,
+    "tests": "4/4",
+    "wall_time": 158.9,
+    "harness_error": null,
+    "failing_tests": [],
+    "signals": [
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "build-pov-ray",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 50,
+    "tests": "0/3",
+    "wall_time": 374.4,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_illum1_render_and_verify",
+      "test_outputs.py::test_povray_version",
+      "test_outputs.py::test_povray_built_from_correct_source"
+    ],
+    "signals": [
+      "step_budget",
+      "bash_timeout×2",
+      "high_error_rate(27/50)"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "extract-moves-from-video",
+    "difficulty": null,
+    "success": false,
+    "score": 0.0,
+    "num_commands": null,
+    "tests": "None/None",
+    "wall_time": 2400.0,
+    "harness_error": "timeout after 2400.0s",
+    "failing_tests": [],
+    "signals": [
+      "setup_error"
+    ],
+    "transcript_found": false
+  },
+  {
+    "task_id": "feal-differential-cryptanalysis",
+    "difficulty": null,
+    "success": false,
+    "score": 0.0,
+    "num_commands": null,
+    "tests": "None/None",
+    "wall_time": 2400.0,
+    "harness_error": "timeout after 2400.0s",
+    "failing_tests": [],
+    "signals": [
+      "setup_error"
+    ],
+    "transcript_found": false
+  },
+  {
+    "task_id": "caffe-cifar-10",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 35,
+    "tests": "1/6",
+    "wall_time": 3888.1,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_caffe_version_and_source",
+      "test_outputs.py::test_cifar10_model_exists",
+      "test_outputs.py::test_cpu_only_training_configured",
+      "test_outputs.py::test_training_completed_500_iterations",
+      "test_outputs.py::test_model_accuracy_verification"
+    ],
+    "signals": [
+      "bash_timeout×29",
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "cancel-async-tasks",
+    "difficulty": "hard",
+    "success": true,
+    "score": 1.0,
+    "num_commands": 5,
+    "tests": "6/6",
+    "wall_time": 49.7,
+    "harness_error": null,
+    "failing_tests": [],
+    "signals": [],
+    "transcript_found": true
+  },
+  {
+    "task_id": "chess-best-move",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 22,
+    "tests": "0/1",
+    "wall_time": 111.8,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_move_correct"
+    ],
+    "signals": [
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "circuit-fibsqrt",
+    "difficulty": "hard",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 50,
+    "tests": "2/3",
+    "wall_time": 99.6,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_sqrt_fib"
+    ],
+    "signals": [
+      "step_budget",
+      "output_truncated×1"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "cobol-modernization",
+    "difficulty": "easy",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 38,
+    "tests": "2/3",
+    "wall_time": 88.8,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_program_output"
+    ],
+    "signals": [
+      "output_truncated×2"
+    ],
+    "transcript_found": true
+  },
+  {
+    "task_id": "code-from-image",
+    "difficulty": "medium",
+    "success": false,
+    "score": 0.0,
+    "num_commands": 43,
+    "tests": "1/2",
+    "wall_time": 95.4,
+    "harness_error": null,
+    "failing_tests": [
+      "test_outputs.py::test_output_is_correct"
+    ],
+    "signals": [],
+    "transcript_found": true
+  }
+]

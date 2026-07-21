@@ -133,6 +133,41 @@ def prune_harmful_bullets(playbook_text, protected_ids=None, margin=1.0, min_obs
     return '\n'.join(kept), removed
 
 
+# The word "rubric" may never appear in a learned bullet. The generator never sees
+# a rubric (it exists only at grading time), so any bullet that leans on one is
+# dead weight at best and, at worst, replaces real instructions with a vague
+# structural compulsion. Judging "does this bullet DEPEND on the rubric?" needs a
+# reading the models here cannot do reliably (tried: regex, and two LLM-judge
+# prompts — one scored 5/7, the other inverted to 0/7). So the rule is a flat,
+# predictable word ban, and the reflector/curator prompts are TOLD about it: a
+# lesson worth keeping can always be rephrased without the word.
+_BANNED_WORD = re.compile(r'\brubrics?\b', re.I)
+
+
+def sanitize_playbook(playbook_text, protected_ids=None):
+    """Delete every learned (non-protected) bullet mentioning the rubric.
+
+    Returns ``(new_playbook_text, [(id, reason), ...])``. Mirrors
+    ``prune_harmful_bullets``: seeds, section headers and blanks are kept verbatim.
+    """
+    protected = set(protected_ids or ())
+    kept, removed = [], []
+    for line in playbook_text.split('\n'):
+        stripped = line.strip()
+        if not stripped or stripped.startswith('#'):
+            kept.append(line)
+            continue
+        parsed = parse_playbook_line(line)
+        if not parsed or parsed['id'] in protected:
+            kept.append(line)
+            continue
+        if _BANNED_WORD.search(parsed['content']):
+            removed.append((parsed['id'], 'mentions the rubric'))
+            continue
+        kept.append(line)
+    return '\n'.join(kept), removed
+
+
 def get_bullet_ids(playbook_text):
     """Return the set of all bullet IDs currently in a playbook.
 
