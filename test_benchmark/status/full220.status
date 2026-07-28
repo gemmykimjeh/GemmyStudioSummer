@@ -1,0 +1,17 @@
+2026-07-23T17:41:07 | baseline | SKIP | 220/220 확보됨
+2026-07-23T17:41:08 | DRIVER | START | 4 arms x 220 tasks
+2026-07-23T17:41:08 | baseline | SKIP | already complete
+2026-07-23T17:41:08 | pure | START
+2026-07-23T18:50:11 | pure | DONE | 220/220
+2026-07-23T18:50:11 | rulebook | START
+2026-07-24T09:01:30 | DRIVER | START | 4 arms x 220 tasks
+2026-07-24T09:01:30 | baseline | SKIP | already complete
+2026-07-24T09:01:30 | pure | SKIP | already complete
+2026-07-24T09:01:30 | rulebook | START
+2026-07-24T17:11:17 | RESUME-WAIT | START | waiting for quota reset
+2026-07-24T17:11:21 | QUOTA | RESET detected
+2026-07-24T17:11:23 | rulebook | RESUME | 193/220
+2026-07-24T17:40:56 | rulebook | DONE | 220/220
+2026-07-24T17:40:57 | v63 | START | 0/220
+2026-07-27T09:14:28 | v63 | DONE | 186/220
+2026-07-27T09:14:28 | RESUME-WAIT | COMPLETE | rulebook + v63 finished

@@ -65,7 +65,7 @@ class ACEDualGDPvalAgent(Agent):
         curator_frequency: int = 1,
         token_budget: int = 80000,
         success_threshold: float = 0.5,
-        learn_max_score: float = 0.75,
+        learn_max_score: float = 0.70,
         use_bulletpoint_analyzer: bool = True,
         dedup_threshold: float = 0.85,
         api_key: str | None = None,

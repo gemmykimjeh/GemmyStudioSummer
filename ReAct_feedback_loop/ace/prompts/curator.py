@@ -123,23 +123,6 @@ MAINTENANCE (cleanup): scan the CURRENT playbook shown above. For every EXISTING
 non-protected bullet that matches the pattern above, emit a DELETE operation:
   {{"type": "DELETE", "bullet_id": "<that bullet's id>", "reason": "capability-disclaimer bullet"}}
 Protected/seed bullets are never deleted — do not target them.
-
-**STANDING WARNING — never write the word "rubric" into a bullet:**
-The agent that reads this playbook sees ONLY the task and its attachments; it
-NEVER sees a rubric or grading criteria (those exist only after submission). A
-bullet that says to consult the rubric, treat it as a schema, or cover every
-rubric item is therefore impossible to act on — and it overfits to one graded
-example. **Any bullet containing the word "rubric" is deleted automatically**, so
-adding one wastes the slot. Keep the underlying lesson and phrase it as a
-self-standing instruction instead:
-- NOT "ensure every rubric item has a section" -> "address each named party,
-  step and category individually rather than covering the set with one example"
-- NOT "check the rubric for required columns" -> "never assume column names;
-  inspect the source file's actual headers before using them"
-
-MAINTENANCE (cleanup): for every EXISTING non-protected bullet whose text
-contains "rubric", emit:
-  {{"type": "DELETE", "bullet_id": "<that bullet's id>", "reason": "rubric-referencing bullet"}}
 """
 
 CONCRETE_CURATOR_PROMPT = CURATOR_PROMPT.replace("**Instructions:**", _CONCRETE_CURATOR_NUDGE, 1) + _CURATOR_DISCLAIMER_GUARD

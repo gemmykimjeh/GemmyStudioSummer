@@ -45,3 +45,6 @@ ace_tau_run/
 
 # ----- 외부 벤치마크 클론 (test_benchmark/external, ~509M, 각자 .git 보유) -----
 external/
+
+# ----- 업무보고 / 발표자료 초안 (로컬 전용, 커밋 제외) -----
+workreport/
