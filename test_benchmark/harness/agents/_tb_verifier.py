@@ -14,22 +14,25 @@ and runs ``test.sh`` — a **destructive, after-the-fact** operation. An ACE age
 needs that verdict *during* ``run()`` to learn from it, but grading early would
 leave the official scorer looking at a contaminated container.
 
-``shadow_reward`` resolves that without touching the runner or the benchmark:
+Modes (``reward_signal`` dispatches on them):
 
-  ``shadow``  (default) ``docker commit`` the task container to a throwaway
-              image, start a **shadow container** from it, run the official
-              verifier there, then delete both. The scored container is left
-              byte-identical, so ``TerminalBench.score()`` still produces a
-              pristine official verdict.
-  ``inplace`` run the verifier directly in the scored container. Cheapest, but
-              it **contaminates the official score** — debugging only.
-  ``none``    skip the verifier entirely.
+  ``shared``  (default, the industry-standard way) grade the task's ONE real
+              in-container run and use that SAME evaluation for both learning and
+              the reported score. ``env.official_verdict()`` runs ``test.sh`` in
+              the scored container exactly once and caches it; the ACE learner and
+              ``TerminalBench.score()`` both read that cache. No copy, no double
+              run — so the learning signal can NEVER disagree with the reported
+              score (this is what fixes the shadow≠official server-task mismatch).
+  ``shadow``  ``docker commit`` the container to a throwaway image, grade a copy,
+              delete it. Preserves the scored container but the copy loses running
+              processes, so a task whose test checks a *running* server grades
+              Fail on the copy though it Passed for real. Kept for compatibility.
+  ``inplace`` grade the scored container directly (does not share the cache, so it
+              double-runs vs ``score()``) — debugging only.
+  ``none``    skip the verifier entirely; reflect from the transcript alone.
 
-The reward returned here is ACE's *learning feedback* only. It is never reported
-as the benchmark score — that always comes from ``TerminalBench.score()``.
-
-Cost: ``shadow`` runs the verifier twice per task (ours + the real one), and
-``test.sh`` does ``apt-get`` + fetches uv/pytest each time.
+Cost: ``shared`` runs the verifier ONCE per task (shared with scoring); ``shadow``
+runs it twice. ``test.sh`` does ``apt-get`` + fetches uv/pytest each time.
 """
 
 from __future__ import annotations
@@ -40,7 +43,7 @@ import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 
-FEEDBACK_MODES = ("shadow", "none", "inplace")
+FEEDBACK_MODES = ("shared", "shadow", "none", "inplace")
 
 #: Learned-playbook bullet ids, e.g. [fmt-00037]. Deliberately does NOT match
 #: the rulebook's [rb-fmt-01] form: the rulebook is immutable and never counted,
@@ -148,6 +151,34 @@ def _read_failed_tests(target: str, endpoint, _docker) -> tuple[list[str], int |
               for t in (results.get("tests") or [])
               if (t.get("status") or "").lower() not in ("passed", "skipped")]
     return failed, summary.get("tests"), summary.get("passed")
+
+
+def reward_signal(task, env, mode: str = "shared") -> VerifierResult:
+    """The learning signal for the ACE terminal arms. ``shared`` (default) reads
+    the ONE official in-container grading that the reported score also uses, so
+    the two can never diverge; the other modes keep the old separate-grading
+    behaviour. See the module docstring for the trade-offs."""
+    if mode == "shared":
+        return shared_reward(task, env)
+    return shadow_reward(task, env, mode)
+
+
+def shared_reward(task, env) -> VerifierResult:
+    """Learning signal == the reported score: both come from the single
+    ``env.official_verdict()`` in-container grading (cached). No copy, no double
+    run. Degrades to ``reward=None`` (never raises) when the env isn't a
+    TerminalBenchEnv, so these generic agents still run on other benchmarks."""
+    try:
+        from harness.benchmarks.terminal_bench import TerminalBenchEnv  # noqa: PLC0415
+    except ImportError as exc:  # noqa: BLE001
+        return VerifierResult(note=f"terminal_bench adapter unavailable ({exc})")
+    if not isinstance(env, TerminalBenchEnv):
+        return VerifierResult(note=f"env {type(env).__name__} is not a TerminalBenchEnv")
+    v = env.official_verdict()
+    return VerifierResult(
+        reward=v.get("reward"), note=v.get("note", ""),
+        failed_tests=v.get("failed_tests") or [],
+        tests_total=v.get("tests_total"), tests_passed=v.get("tests_passed"))
 
 
 def shadow_reward(task, env, mode: str = "shadow") -> VerifierResult:

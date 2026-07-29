@@ -37,11 +37,15 @@ logs/
 runs/
 results/
 ace_gdpval_run/
+ace_dual_gdpval_run/
 ace_react_run/
 ace_browsecomp_run/
 ace_terminal_run/
 ace_dual_terminal_run/
 ace_tau_run/
+# 상세 LLM 호출 로그 (수백 MB, 어느 위치든 커밋 금지)
+detailed_llm_logs/
+**/detailed_llm_logs/
 
 # ----- 외부 벤치마크 클론 (test_benchmark/external, ~509M, 각자 .git 보유) -----
 external/

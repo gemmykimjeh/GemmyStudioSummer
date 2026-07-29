@@ -38,6 +38,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import tomllib
 import uuid
 from pathlib import Path
@@ -60,10 +61,13 @@ _DEFAULT_TASKS_DIR = (
 # errors, test summaries and final results live. Keeping the head (as this
 # adapter used to) hands the agent the preamble and throws the verdict away.
 _MAX_OUTPUT = 6400
-# Per-command wait: upstream's default block is `max_timeout_sec = 180.0`
-# (terminal_bench/terminal/models.py). Builds and training runs legitimately
-# exceed the 120s this adapter used to allow.
-_CMD_TIMEOUT = 180.0
+# Per-command BLOCK WAIT, matching real terminal-bench semantics. Upstream's
+# `TmuxSession.send_keys` default is `max_timeout_sec = 180.0`, and crucially it
+# is a *wait*, not a *kill*: on timeout the command KEEPS RUNNING in the terminal
+# and the agent reads the screen again. We reproduce that below (persistent shell
+# session; on timeout we return the output-so-far and leave the command running),
+# instead of the old behaviour of hard-killing the command at this bound.
+_CMD_WAIT = 180.0
 _CLONE_HINT = (
     "Terminal-Bench 2.0 tasks not found at {d}. Clone them:\n"
     "  git clone https://github.com/laude-institute/terminal-bench-2 "
@@ -72,13 +76,71 @@ _CLONE_HINT = (
 
 
 # ----------------------------------------------------------- docker helpers
-def _docker(args: list[str], endpoint: str | None, timeout: float | None = None
-            ) -> subprocess.CompletedProcess:
+def _docker(args: list[str], endpoint: str | None, timeout: float | None = None,
+            input: str | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     if endpoint:
         env["DOCKER_HOST"] = endpoint
     return subprocess.run(["docker", *args], capture_output=True, text=True,
-                          env=env, timeout=timeout, shell=False)
+                          env=env, timeout=timeout, shell=False, input=input)
+
+
+def _read_ctrf(container: str, endpoint: str | None
+               ) -> tuple[list[str], int | None, int | None]:
+    """Per-test detail (failed names, total, passed) from the verifier's CTRF json."""
+    r = _docker(["exec", container, "cat", "/logs/verifier/ctrf.json"], endpoint, timeout=60)
+    if r.returncode != 0:
+        return [], None, None
+    try:
+        results = json.loads(r.stdout).get("results", {}) or {}
+    except Exception:  # noqa: BLE001
+        return [], None, None
+    summary = results.get("summary", {}) or {}
+    failed = [t.get("name") or "<unnamed>"
+              for t in (results.get("tests") or [])
+              if (t.get("status") or "").lower() not in ("passed", "skipped")]
+    return failed, summary.get("tests"), summary.get("passed")
+
+
+def _run_verifier(task: Task, container: str, endpoint: str | None) -> dict:
+    """Copy the task's ``tests/`` into ``container``, run ``test.sh`` once, and read
+    the reward + per-test detail. Returns a plain dict (``reward is None`` on any
+    problem, with a ``note``); callers shape it into a Result / VerifierResult. This
+    is the single source of truth for a task's grade — run in the REAL container so
+    running servers, env and background state are all visible.
+    """
+    task_dir = task.metadata.get("task_dir")
+    tests = Path(task_dir) / "tests" if task_dir else None
+    if not tests or not (tests / "test.sh").exists():
+        return {"reward": None, "note": f"no tests/test.sh under {tests}"}
+    _docker(["exec", container, "mkdir", "-p", "/tests", "/logs/verifier"],
+            endpoint, timeout=60)
+    cp = _docker(["cp", f"{tests}/.", f"{container}:/tests/"], endpoint, timeout=120)
+    if cp.returncode != 0:
+        return {"reward": None,
+                "note": "failed to copy tests: " + (cp.stderr or cp.stdout)[-300:]}
+    # A Windows checkout (git autocrlf) leaves CRLF in the shell scripts, which
+    # breaks bash in the Linux container ($'\r': command not found). Normalize.
+    _docker(["exec", container, "sh", "-c",
+             r"find /tests -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true"],
+            endpoint, timeout=60)
+    timeout = float(task.metadata.get("verifier_timeout_sec", 900)) + 120
+    try:
+        tp = _docker(["exec", container, "bash", "/tests/test.sh"], endpoint, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return {"reward": None, "note": f"verifier timed out after {timeout:g}s"}
+    r = _docker(["exec", container, "cat", "/logs/verifier/reward.txt"], endpoint, timeout=60)
+    if r.returncode != 0:
+        tail = ((tp.stdout or "") + (tp.stderr or ""))[-500:]
+        return {"reward": None,
+                "note": f"verifier wrote no reward.txt (exit {tp.returncode})", "tail": tail}
+    try:
+        reward = float((r.stdout or "").strip())
+    except ValueError:
+        return {"reward": None, "note": f"unparseable reward.txt: {(r.stdout or '')[:80]!r}"}
+    failed, total, passed = _read_ctrf(container, endpoint)
+    return {"reward": reward, "note": "official verifier (shared, in-container)",
+            "failed_tests": failed, "tests_total": total, "tests_passed": passed}
 
 
 def _docker_ok(endpoint: str | None) -> bool:
@@ -98,6 +160,13 @@ class TerminalBenchEnv(Env):
         self.container = container
         self.endpoint = endpoint
         self.n_commands = 0
+        # Persistent-shell session state (real terminal-bench semantics). Lazily
+        # started on the first command; falls back to a stateless exec if it can't.
+        self._session: dict | None = None
+        self._session_failed = False
+        # The task's ONE official grading, cached so the reported score and the ACE
+        # learning signal read the same evaluation (see official_verdict()).
+        self._verdict: dict | None = None
 
     def observation(self) -> str:
         return self.task.prompt
@@ -105,46 +174,158 @@ class TerminalBenchEnv(Env):
     def instructions(self) -> str:
         return (
             "You are working inside a Linux container via the `bash` tool. "
-            "Accomplish the task by running shell commands — inspect the system, "
-            "make the required changes, and write any required output files. Each "
-            "`bash` call runs a command and returns its combined stdout/stderr. "
-            "When the task is complete, stop."
+            "Commands run in ONE persistent shell, so working directory, env vars "
+            "and background processes PERSIST across calls (like a real terminal). "
+            "A slow command is not killed at the wait limit — it keeps running and "
+            "you can check back. When the task is complete, stop."
         )
 
     def tools(self) -> list[ToolSpec]:
         return [ToolSpec(
             name="bash",
-            description="Run a shell command in the task's Linux container and "
-                        "return its combined stdout/stderr.",
+            description="Run a shell command in the task's persistent Linux shell "
+                        "and return its combined stdout/stderr.",
             parameters={"type": "object",
                         "properties": {"command": {"type": "string"}},
                         "required": ["command"]},
         )]
+
+    # -- persistent session (real terminal-bench: one terminal, wait-not-kill) --
+    def _sh(self, script: str, timeout: float = 60) -> subprocess.CompletedProcess:
+        """One-off, out-of-session shell command in the container (for plumbing)."""
+        return _docker(["exec", self.container, "sh", "-c", script],
+                       self.endpoint, timeout=timeout)
+
+    def _ensure_session(self) -> bool:
+        """Start ONE long-lived bash reading commands from a FIFO, output appended
+        to a log file. Because it is a single process, cwd / env / background jobs
+        persist across commands; because we only ever *read* the log (never kill
+        the shell), a slow command is never terminated. fd 9 is held open rw on the
+        FIFO so external writers closing it don't send EOF and end the shell.
+        Returns False if the container can't support it -> stateless fallback.
+        """
+        if self._session:
+            return True
+        if self._session_failed:
+            return False
+        sid = uuid.uuid4().hex[:8]
+        fifo, log = f"/tmp/tb_{sid}.in", f"/tmp/tb_{sid}.log"
+        if self._sh(f"mkfifo {fifo} && : > {log}", timeout=30).returncode != 0:
+            self._session_failed = True
+            return False
+        # The persistent shell reads its command stream from the FIFO (as a script
+        # via /dev/fd/9) but runs each command with **stdin = /dev/null**, not the
+        # FIFO. This is essential: if executed commands inherited the FIFO as stdin,
+        # an interactive one (e.g. apt-get's debconf "Geographic area:" prompt, or a
+        # bare `python`/`cat`) would read the command stream and deadlock the session.
+        # /dev/null gives it EOF instead — the same non-interactive behaviour the old
+        # stateless `docker exec` had — while cwd / env / background jobs still persist
+        # in the one shell. fd 9 is held rw so the FIFO never signals EOF and the
+        # shell stays alive across commands. Commands are fed as raw bytes (see
+        # _run_in_session) so no \r sneaks in from the Windows host.
+        start = _docker(
+            ["exec", "-d", self.container, "bash", "-c",
+             f"exec 9<>{fifo}; exec bash --noprofile --norc /dev/fd/9 </dev/null "
+             f">>{log} 2>&1"],
+            self.endpoint, timeout=30)
+        if start.returncode != 0:
+            self._session_failed = True
+            return False
+        self._session = {"fifo": fifo, "log": log}
+        return True
 
     def call_tool(self, name: str, arguments: dict) -> ToolResult:
         if name != "bash":
             return ToolResult(output=f"unknown tool {name!r}", is_error=True)
         cmd = (arguments or {}).get("command", "")
         self.n_commands += 1
+        if self._ensure_session():
+            return self._run_in_session(cmd)
+        return self._run_stateless(cmd)
+
+    def _run_in_session(self, cmd: str) -> ToolResult:
+        s = self._session
+        marker = "__TB_END_" + uuid.uuid4().hex + "__"
+        wc = self._sh(f"wc -c < {s['log']}", timeout=30)
+        try:
+            before = int((wc.stdout or "0").strip() or 0)
+        except ValueError:
+            before = 0
+        # Feed the command + a marker line carrying its exit code into the session.
+        # Sent as raw BYTES (not _docker's text mode, which on Windows rewrites \n to
+        # \r\n and makes every command arrive as ``cmd$'\r'``). No shell-quoting of
+        # the command is needed because it travels over stdin.
+        payload = (cmd + "\n" + f"printf '\\n{marker} %s\\n' \"$?\"\n").encode("utf-8")
+        denv = dict(os.environ)
+        if self.endpoint:
+            denv["DOCKER_HOST"] = self.endpoint
+        subprocess.run(
+            ["docker", "exec", "-i", self.container, "bash", "-c",
+             f"cat >> {s['fifo']}"],
+            input=payload, env=denv, timeout=30,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # Poll the log tail for the marker up to the block wait. On timeout we do
+        # NOT kill: return the output so far; the command keeps running.
+        deadline = time.monotonic() + _CMD_WAIT
+        chunk, exit_code, running = "", None, True
+        while True:
+            r = self._sh(f"tail -c +{before + 1} {s['log']}", timeout=30)
+            chunk = r.stdout or ""
+            idx = chunk.find(marker)
+            if idx != -1:
+                tail = chunk[idx + len(marker):].strip().split()
+                exit_code = (int(tail[0]) if tail and tail[0].lstrip("-").isdigit()
+                             else None)
+                chunk = chunk[:idx].rstrip("\n")
+                running = False
+                break
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(0.4)
+        return self._finish(chunk, exit_code, running)
+
+    def _run_stateless(self, cmd: str) -> ToolResult:
+        """Fallback when a persistent session can't be created: a plain exec with a
+        hard wait (no persistence, no wait-not-kill — best effort)."""
         try:
             p = _docker(["exec", self.container, "bash", "-lc", cmd],
-                        self.endpoint, timeout=_CMD_TIMEOUT)
+                        self.endpoint, timeout=_CMD_WAIT)
         except subprocess.TimeoutExpired:
             return ToolResult(
-                output=f"[command timed out after {_CMD_TIMEOUT:g}s]", is_error=True)
-        out = (p.stdout or "") + (p.stderr or "")
+                output=f"[command timed out after {_CMD_WAIT:g}s]", is_error=True)
+        return self._finish((p.stdout or "") + (p.stderr or ""), p.returncode, False)
+
+    def _finish(self, out: str, exit_code: int | None, running: bool) -> ToolResult:
         if len(out) > _MAX_OUTPUT:
-            # Keep the tail, like a terminal screen: the end holds the error and
-            # the result. Say how much was dropped so the agent knows to narrow
-            # the command (tail/grep) rather than assume it saw everything.
+            # Keep the tail, like a terminal screen: the end holds the error and the
+            # result. Say how much was dropped so the agent narrows the command.
             dropped = len(out) - _MAX_OUTPUT
             out = (f"[...{dropped} earlier chars omitted — this is the last "
                    f"{_MAX_OUTPUT} chars, as on a terminal screen. Re-run with "
-                   f"head/grep/less if you need the start.]\n"
-                   + out[-_MAX_OUTPUT:])
-        if p.returncode != 0:
-            out = f"[exit {p.returncode}]\n{out}"
-        return ToolResult(output=out or "[no output]", is_error=p.returncode != 0)
+                   f"head/grep/less if you need the start.]\n" + out[-_MAX_OUTPUT:])
+        if running:
+            out = (out + f"\n[still running after {_CMD_WAIT:g}s — the command keeps "
+                   "running in the shell. Send another command to check on it "
+                   "(read a log, `jobs`, `wait`), do not assume it finished.]")
+            return ToolResult(output=out or "[no output yet]", is_error=False)
+        if exit_code not in (0, None):
+            out = f"[exit {exit_code}]\n{out}"
+        return ToolResult(output=out or "[no output]", is_error=bool(exit_code))
+
+    # -- the ONE official grading, shared by the report and the learner ---------
+    def official_verdict(self) -> dict:
+        """Grade this task in THIS (scored) container EXACTLY ONCE and cache it.
+
+        Both the reported score (``TerminalBench.score``) and any in-episode learner
+        (the ACE ``shared`` feedback mode) read this same result, so the learning
+        signal can never disagree with the reported score — the standard
+        "grade once, share the reward" contract. It replaces the old shadow-copy
+        workaround, which graded a filesystem copy that lost running processes and
+        so failed server tasks that had actually passed.
+        """
+        if self._verdict is None:
+            self._verdict = _run_verifier(self.task, self.container, self.endpoint)
+        return self._verdict
 
     def snapshot(self) -> dict:
         return {"container": self.container, "commands": self.n_commands}
@@ -253,68 +434,22 @@ class TerminalBench(Benchmark):
         assert isinstance(env, TerminalBenchEnv)
         base = dict(task_id=task.id, benchmark=self.name, agent="",
                     cost=trajectory.cost, wall_time=trajectory.wall_time)
-        task_dir = Path(task.metadata["task_dir"])
-        ep = env.endpoint
-
-        # Reproduce harbor's verifier contract: /tests + /logs/verifier, then test.sh.
-        _docker(["exec", env.container, "mkdir", "-p", "/tests", "/logs/verifier"],
-                ep, timeout=60)
-        cp = _docker(["cp", f"{task_dir / 'tests'}/.", f"{env.container}:/tests/"],
-                     ep, timeout=120)
-        if cp.returncode != 0:
-            return Result(**base, success=False, score=0.0,
-                          error="failed to copy tests into container: "
-                                + (cp.stderr or cp.stdout)[-500:],
-                          metrics={"num_commands": env.n_commands})
-        # A Windows checkout (git autocrlf) leaves CRLF in the shell scripts, which
-        # breaks bash in the Linux container ($'\r': command not found). Normalize.
-        _docker(["exec", env.container, "sh", "-c",
-                 r"find /tests -name '*.sh' -exec sed -i 's/\r$//' {} + 2>/dev/null || true"],
-                ep, timeout=60)
-        timeout = task.metadata.get("verifier_timeout_sec", 900) + 120
-        try:
-            tp = _docker(["exec", env.container, "bash", "/tests/test.sh"],
-                         ep, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            return Result(**base, success=False, score=0.0,
-                          error=f"verifier timed out after {timeout}s",
-                          metrics={"num_commands": env.n_commands})
-
-        reward = self._read_reward(env, ep)
-        tests = self._read_ctrf(env, ep)
+        # The ONE official grading. If the ACE learner already ran it this episode
+        # (shared feedback mode), this returns that cached result — a single real
+        # in-container grade shared by scoring and learning; otherwise it runs now.
+        v = env.official_verdict()
+        reward = v.get("reward")
         if reward is None:
-            out = ((tp.stdout or "") + (tp.stderr or ""))[-600:]
             return Result(**base, success=False, score=0.0,
-                          error="verifier did not write /logs/verifier/reward.txt "
-                                f"(exit {tp.returncode}). tail:\n{out}",
+                          error=f"verifier produced no reward: {v.get('note', '')}"
+                                + (f"\ntail:\n{v['tail']}" if v.get("tail") else ""),
                           metrics={"num_commands": env.n_commands})
+        total = v.get("tests_total")
         return Result(
             **base, success=reward >= 1.0, score=float(reward),
             metrics={"reward": reward, "num_commands": env.n_commands,
                      "difficulty": task.metadata.get("difficulty"),
-                     **tests},
+                     "tests_total": total, "tests_passed": v.get("tests_passed"),
+                     "tests_failed": (None if total is None
+                                      else total - (v.get("tests_passed") or 0))},
         )
-
-    def _read_reward(self, env: TerminalBenchEnv, ep: str | None) -> float | None:
-        r = _docker(["exec", env.container, "cat", "/logs/verifier/reward.txt"],
-                    ep, timeout=60)
-        if r.returncode != 0:
-            return None
-        try:
-            return float((r.stdout or "").strip())
-        except ValueError:
-            return None
-
-    def _read_ctrf(self, env: TerminalBenchEnv, ep: str | None) -> dict:
-        """Best-effort per-test counts from the CTRF json the verifier emits."""
-        r = _docker(["exec", env.container, "cat", "/logs/verifier/ctrf.json"],
-                    ep, timeout=60)
-        if r.returncode != 0:
-            return {}
-        try:
-            summary = (json.loads(r.stdout).get("results", {}) or {}).get("summary", {})
-        except Exception:  # noqa: BLE001
-            return {}
-        return {"tests_total": summary.get("tests"),
-                "tests_passed": summary.get("passed"),
-                "tests_failed": summary.get("failed")}

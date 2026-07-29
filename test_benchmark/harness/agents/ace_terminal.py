@@ -3,11 +3,13 @@
 The Terminal-Bench 2.0 counterpart of ``ace_browsecomp`` (browsecomp) and
 ``ace_tau`` (tau-bench). Same two-layer composition, re-grounded on shell work:
 
-* **ReAct (the base agent)** — a generic Anthropic function-calling loop over the
-  benchmark's ``Env`` tools. ``terminal_bench`` exposes exactly one tool,
-  ``bash``, so the agent solves the task by running shell commands in the task
-  container. Nothing here is hardcoded to that name: the loop is built from
-  ``env.tools()`` / ``env.call_tool()``, so any tool-shaped Env works.
+* **NexAU0 seed (the base agent)** — the minimal NexAU seed harness from the AHE
+  paper (arXiv:2604.25850): a single ``run_shell_command`` tool over an Anthropic
+  function-calling loop, a minimal seed prompt, and nothing else (no middleware /
+  skills / sub-agents / memory). It lives in ``_nexau0``; the seed tool is mapped
+  onto the benchmark's ``bash`` tool at call time. This puts the arm on the SAME
+  substrate AHE used when it compared ACE (**ACE-on-NexAU0**), not ACE's native
+  ReAct scaffold — so the harness is held fixed and only the playbook varies.
 * **ACE (the context layer)** — ace's own ``Reflector`` + ``Curator``, reused
   *unchanged* from the ace repo. After each task the agent reflects on its
   trajectory against a real pass/fail signal and the Curator grows a persistent
@@ -79,7 +81,7 @@ from pathlib import Path
 from harness.agent import Agent
 from harness.benchmark import Env
 from harness.registry import register_agent
-from harness.schema import Step, Task, Trajectory
+from harness.schema import Task, Trajectory
 
 # Per-million-token prices (USD): (input, output) — shell-loop telemetry only.
 _PRICING: dict[str, tuple[float, float]] = {
@@ -88,21 +90,12 @@ _PRICING: dict[str, tuple[float, float]] = {
     "claude-sonnet-5": (3.0, 15.0),
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
+    "gemini": (0.0, 0.0),   # free tier via the rotation proxy (any gemini-* id)
 }
 
-_SYSTEM_PROMPT = (
-    "You are an expert systems engineer working inside a Linux container. Solve "
-    "the task by running shell commands with the available tool.\n"
-    "Work empirically: inspect the environment before you change it (ls, cat, "
-    "which, --help), then act, then VERIFY what you did actually took effect. Do "
-    "not assume a command succeeded — check exit status and re-read the result.\n"
-    "Prefer small, checkable steps over one long chained command, so a failure "
-    "tells you which part broke. If a command errors, read the error text before "
-    "retrying; do not repeat an identical failing command.\n"
-    "Write every artifact the task asks for, at exactly the path it specifies. "
-    "When the task is fully done and verified, stop calling tools and give a "
-    "brief summary of what you changed."
-)
+# The base agent's system prompt now lives in ``_nexau0`` (the NexAU0 seed): a
+# single tool + three rules + three runtime variables. ACE adds only its playbook
+# in-context (see ``_solve``); the substrate itself carries no ACE-specific prose.
 
 _BULLET_ID_RE = re.compile(r"\[([a-z]{3,}-\d{5})\]")
 
@@ -143,10 +136,11 @@ class ACETerminalAgent(Agent):
         self.playbook_out = playbook_out or os.environ.get(
             "ACE_PLAYBOOK_OUT", "playbooks/ace_playbook_terminal.txt")
         self.playbook_in = playbook_in or os.environ.get("ACE_PLAYBOOK_IN")
-        self.feedback = (feedback or os.environ.get("ACE_TB_FEEDBACK", "shadow")).lower()
-        if self.feedback not in {"shadow", "none", "inplace"}:
+        self.feedback = (feedback or os.environ.get("ACE_TB_FEEDBACK", "shared")).lower()
+        if self.feedback not in {"shared", "shadow", "none", "inplace"}:
             raise ValueError(
-                f"feedback must be 'shadow', 'none' or 'inplace' (got {self.feedback!r})")
+                "feedback must be 'shared', 'shadow', 'none' or 'inplace' "
+                f"(got {self.feedback!r})")
         self.curator_frequency = curator_frequency
         self.token_budget = token_budget
         self._api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
@@ -193,7 +187,21 @@ class ACETerminalAgent(Agent):
             raise RuntimeError(
                 'ace_terminal needs the anthropic SDK: pip install -e ".[claude]".'
             ) from exc
-        self._client = anthropic.Anthropic(api_key=self._api_key)
+        # Route the shell loop through whatever ANTHROPIC_BASE_URL points at: the
+        # LiteLLM rotation proxy (:4000, fronting N Gemini keys with RPD failover)
+        # when running on Gemini, the real API otherwise. The anthropic SDK reads
+        # the env var itself; we pass it explicitly only so we can log it.
+        base_url = os.environ.get("ANTHROPIC_BASE_URL") or None
+        self._client = anthropic.Anthropic(api_key=self._api_key, base_url=base_url)
+        if base_url:
+            print(f"[ace_terminal] shell loop -> {base_url} (model={self.model}); "
+                  f"ACE brain provider={self.api_provider}")
+            if "4000" in base_url and self.api_provider == "anthropic":
+                print("[ace_terminal] WARNING: shell loop routes through the proxy "
+                      "but ACE_API_PROVIDER=anthropic, so the Reflector/Curator will "
+                      "hit the REAL Anthropic API. Set ACE_API_PROVIDER=gemini (and "
+                      "GEMINI_BASE_URL=http://localhost:4000/v1) to route the brain "
+                      "through the proxy too.")
 
         # Reuse ace's Reflector/Curator (unchanged logic) + its helpers. Both the
         # baseline repo and ReAct_feedback_loop export these with a compatible
@@ -265,80 +273,68 @@ class ACETerminalAgent(Agent):
         traj.final_output = summary
         traj.final_state = env.snapshot()
         traj.wall_time = time.perf_counter() - start
+
+        # 4) Persist the FULL attempt (final answer + shell transcript + every
+        #    tool call + verdict) so structural problems are inspectable offline.
+        #    The runner only checkpoints Result metrics; this keeps the trace.
+        self._dump_trace(task, env, traj, summary, trace, verdict)
         return traj
 
-    # -- (a) the base agent: generic tool loop -----------------------------
+    # -- full-trace persistence (one JSON per task) ------------------------
+    def _dump_trace(self, task: Task, env: Env, traj: Trajectory,
+                    summary: str | None, trace: str, verdict) -> None:
+        import json as _json  # noqa: PLC0415
+        try:
+            out_dir = os.path.join("ace_terminal_run", "traces")
+            os.makedirs(out_dir, exist_ok=True)
+            steps = []
+            for s in traj.steps:
+                steps.append({k: v for k, v in {
+                    "type": getattr(s, "type", None),
+                    "text": getattr(s, "text", None),
+                    "tool": getattr(s, "name", None),
+                    "arguments": getattr(s, "arguments", None),
+                    "output": getattr(s, "output", None),
+                    "is_error": getattr(s, "is_error", None),
+                }.items() if v is not None})
+            rec = {
+                "task_id": task.id,
+                "difficulty": task.metadata.get("difficulty"),
+                "prompt": task.prompt,
+                "final_answer": summary,
+                "verdict": {"reward": verdict.reward, "solved": verdict.solved,
+                            "summary": verdict.summary()},
+                "num_commands": (env.snapshot() or {}).get("commands"),
+                "tokens": traj.tokens, "cost": traj.cost,
+                "wall_time": traj.wall_time,
+                "playbook_chars": len(self.playbook),
+                "steps": steps,
+                "transcript": trace,
+            }
+            with open(os.path.join(out_dir, f"{task.id}.json"), "w",
+                      encoding="utf-8") as f:
+                _json.dump(rec, f, ensure_ascii=False, indent=2)
+        except Exception as exc:  # noqa: BLE001 - tracing must never abort a run
+            print(f"[ace_terminal] trace dump failed for {task.id}: {exc}")
+
+    # -- (a) the base agent: the NexAU0 seed loop --------------------------
     def _solve(self, task: Task, env: Env, traj: Trajectory) -> tuple[str | None, str]:
-        client = self._client
-        tools = [
-            {"name": s.name, "description": s.description, "input_schema": s.parameters}
-            for s in env.tools()
-        ]
-
-        system = _SYSTEM_PROMPT
-        extra = env.instructions()
-        if extra:
-            system += f"\n\n# Environment guidance\n{extra}"
+        # Substrate = the NexAU0 seed (single ``run_shell_command`` tool + minimal
+        # prompt, no middleware/skills/sub-agents/memory). ACE's ONLY addition is
+        # its playbook, read in-context — exactly ACE-on-NexAU0.
+        from harness.agents import _nexau0  # noqa: PLC0415 - lazy, like _tb_verifier
+        context_block = None
         if self.playbook.strip():
-            system += (
-                "\n\n# PLAYBOOK — lessons accumulated from previous tasks. "
-                "Apply the relevant ones; each bullet is tagged with an id like "
-                "[abc-00001], cite the ids you rely on.\n" + self.playbook
+            context_block = (
+                "# PLAYBOOK — lessons accumulated from previous tasks. Apply the "
+                "relevant ones; each bullet is tagged with an id like [abc-00001], "
+                "cite the ids you rely on.\n" + self.playbook
             )
-
-        traj.add(Step(type="user_message", text=env.observation()))
-        messages = [{"role": "user", "content": env.observation()}]
-        in_price, out_price = _price_for(self.model)
-        trace_parts: list[str] = []
-        last_text: str | None = None
-
-        # Terminal-Bench bounds an attempt by TIME, per task (task.toml
-        # [agent].timeout_sec), not by a step count. Enforce that budget here;
-        # max_steps is only a runaway-loop backstop.
-        budget = float(task.metadata.get("agent_timeout_sec") or 0) or None
-        t0 = time.perf_counter()
-
-        for _ in range(self.max_steps):
-            if budget and time.perf_counter() - t0 > budget:
-                trace_parts.append(f"[agent budget of {budget:g}s exhausted]")
-                break
-            response = client.messages.create(
-                model=self.model, max_tokens=self.max_tokens,
-                system=system, tools=tools, messages=messages,
-            )
-            usage = response.usage
-            traj.tokens += (usage.input_tokens or 0) + (usage.output_tokens or 0)
-            traj.cost += ((usage.input_tokens or 0) * in_price
-                          + (usage.output_tokens or 0) * out_price) / 1_000_000
-
-            tool_uses = []
-            turn_text: list[str] = []
-            for block in response.content:
-                if block.type == "text":
-                    turn_text.append(block.text)
-                    trace_parts.append(block.text)
-                    traj.add(Step(type="assistant_message", text=block.text))
-                elif block.type == "tool_use":
-                    tool_uses.append(block)
-            if turn_text:
-                last_text = "\n".join(turn_text)
-
-            if response.stop_reason != "tool_use":
-                break
-
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for tu in tool_uses:
-                result = env.call_tool(tu.name, tu.input or {})
-                traj.add(Step(type="tool_call", name=tu.name,
-                              arguments=dict(tu.input or {}), output=result.output,
-                              is_error=result.is_error))
-                trace_parts.append(f"[{tu.name}({tu.input})] -> {result.output}")
-                tool_results.append({"type": "tool_result", "tool_use_id": tu.id,
-                                     "content": result.output, "is_error": result.is_error})
-            messages.append({"role": "user", "content": tool_results})
-
-        return last_text, "\n".join(trace_parts)
+        return _nexau0.solve(
+            client=self._client, model=self.model, max_tokens=self.max_tokens,
+            max_steps=self.max_steps, task=task, env=env, traj=traj,
+            price_for=_price_for, context_block=context_block,
+        )
 
     # -- (b) the learning signal: official verifier, non-destructively -----
     def _reward_signal(self, task: Task, env: Env):
@@ -349,8 +345,8 @@ class ACETerminalAgent(Agent):
         obtained — the caller then reflects without ground truth rather than
         inventing one.
         """
-        from harness.agents._tb_verifier import shadow_reward  # noqa: PLC0415
-        return shadow_reward(task, env, self.feedback)
+        from harness.agents._tb_verifier import reward_signal  # noqa: PLC0415
+        return reward_signal(task, env, self.feedback)
 
     # -- (c) the ACE layer: reflect + curate the playbook ------------------
     def _cite_bullets(self, trace: str) -> list:
