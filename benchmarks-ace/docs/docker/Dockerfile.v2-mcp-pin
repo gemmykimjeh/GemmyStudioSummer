@@ -1,0 +1,10 @@
+FROM ghcr.io/openhands/eval-agent-server:9836b77-gaia-binary
+USER root
+# Env vars do NOT survive the agent-server's sanitized subprocess spawn, so pin
+# the resolver via uv's config file instead (system + user scope).
+RUN mkdir -p /etc/uv /home/openhands/.config/uv \
+ && printf 'exclude-newer = "2026-03-23T00:00:00Z"\n' > /etc/uv/uv.toml \
+ && cp /etc/uv/uv.toml /home/openhands/.config/uv/uv.toml \
+ && chown -R openhands:openhands /home/openhands/.config
+USER openhands
+RUN uvx mcp-server-fetch --help </dev/null >/dev/null 2>&1 || true

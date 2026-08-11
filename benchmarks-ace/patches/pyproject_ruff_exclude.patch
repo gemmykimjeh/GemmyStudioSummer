@@ -1,0 +1,15 @@
+diff --git a/pyproject.toml b/pyproject.toml
+index 69f7b2df..19f78a52 100644
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -103,7 +103,9 @@ asyncio_mode = "auto"
+ [tool.ruff]
+ target-version = "py312"
+ line-length = 88
+-exclude = ["legacy"]
++# ace_gaia/vendor holds a verbatim copy of the reference ACE implementation;
++# reformatting it would make it impossible to diff against the original.
++exclude = ["legacy", "ace_gaia/vendor"]
+ 
+ [tool.ruff.format]
+ quote-style = "double"

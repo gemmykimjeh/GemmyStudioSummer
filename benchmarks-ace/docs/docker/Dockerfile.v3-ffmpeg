@@ -1,0 +1,9 @@
+FROM gaia-mcpfix:v2
+# GAIA's per-instance setup shells out to install ffmpeg with a 30s timeout; the
+# apt install takes ~27s and loses the race (worse under emulation), leaving
+# audio/video tasks silently degraded. Bake it in so the runtime step is a no-op.
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ffmpeg \
+ && rm -rf /var/lib/apt/lists/*
+USER openhands

@@ -1,0 +1,12 @@
+FROM gaia-mcpfix:v3
+# GAIA's .mp3 tasks are solved by the agent pip-installing openai-whisper and
+# transcribing. Measured cold install ~474s against the agent's 120s timeout,
+# plus a 139MB checkpoint download. The original run's infra absorbed both;
+# ours cannot. Pre-bake so the runtime install is a no-op.
+USER root
+RUN python3 -m pip install --no-cache-dir --break-system-packages openai-whisper \
+ || python3 -m pip install --no-cache-dir openai-whisper
+ENV PATH="/home/openhands/.local/bin:${PATH}"
+# Preload checkpoints as the RUNTIME user so ~/.cache/whisper is populated for it.
+USER openhands
+RUN python3 -c "import whisper; [whisper.load_model(m) for m in ('tiny','base','small')]"
